@@ -1,0 +1,19 @@
+{
+  "name": "@purestrings/shop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "description": "Bean & Leaf, a demo shop that sells to assistants through PayPal, and charges only for carts your key signed.",
+  "exports": {
+    ".": "./src/shop.ts"
+  },
+  "scripts": {
+    "start": "node --no-warnings src/main.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.0",
+    "@purestrings/core": "*",
+    "hono": "^4.10.0"
+  }
+}
