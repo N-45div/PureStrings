@@ -189,3 +189,18 @@ describe("an allowance", () => {
     assert.throws(() => parseSignable(text.replace('"allow":"allow_', '"allow":"pay_')), /names it by its allow_ id/);
   });
 });
+
+describe("who asked for a payment", () => {
+  it("is part of what's signed, said in its line, and kept to a plain name", () => {
+    const asked: Payment = { ...payment, by: "OpenClaw" };
+    const text = signableText(asked);
+    assert.match(text, /^\{"v":1,"kind":"buy","id":"pay_0123456789abcdef01234567","by":"OpenClaw","shop":/);
+    assert.deepEqual(parseSignable(text), asked);
+    assert.equal(signableLine(asked), "OpenClaw asks to pay $32.50 to Bean & Leaf: 2× House blend beans, 1 lb; 1× Paper filters");
+    assert.throws(() => parseSignable(signableText({ ...payment, by: "Open\u202EClaw" })), /can't show plainly/);
+    assert.throws(() => parseSignable(signableText({ ...payment, by: "x".repeat(41) })), /up to 40 characters/);
+    const under: Payment = { ...payment, allow: "allow_0123456789abcdef01234567", by: "Hermes" };
+    assert.match(signableText(under), /"allow":"allow_0123456789abcdef01234567","by":"Hermes","shop":/);
+    assert.deepEqual(parseSignable(signableText(under)), under);
+  });
+});

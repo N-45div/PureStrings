@@ -37,6 +37,11 @@ export interface Payment {
    * instead of your board, and the shop checks it fits the allowance's limits.
    */
   readonly allow?: string;
+  /**
+   * The assistant that asked for it, by name ("OpenClaw", "Claude"), when one did. It's part of what's signed:
+   * the key says who's asking, and the shop and the auditor keep it, as proof of which agent asked.
+   */
+  readonly by?: string;
   readonly shop: Payee;
   /** The shop's id for the cart it priced. */
   readonly cart: string;
@@ -119,6 +124,7 @@ export function signableText(signable: Signable): string {
     kind: "buy",
     id: signable.id,
     ...(signable.allow ? { allow: signable.allow } : {}),
+    ...(signable.by ? { by: signable.by } : {}),
     shop,
     cart: signable.cart,
     items: signable.items.map((item) => ({ name: item.name, qty: item.qty, price: item.price })),
@@ -161,8 +167,9 @@ export function parseSignable(text: string): Signable {
   const kind = (value as { kind?: unknown } | null)?.kind;
   if (kind !== "buy" && kind !== "link" && kind !== "allow") throw new Error('The text to sign is neither a payment ("buy"), a link ("link") nor an allowance ("allow").');
   const under = kind === "buy" && typeof value === "object" && value !== null && "allow" in value;
+  const asked = kind === "buy" && typeof value === "object" && value !== null && "by" in value;
   const keys = {
-    buy: ["v", "kind", "id", ...(under ? ["allow"] : []), "shop", "cart", "items", "total", "currency", "expires"],
+    buy: ["v", "kind", "id", ...(under ? ["allow"] : []), ...(asked ? ["by"] : []), "shop", "cart", "items", "total", "currency", "expires"],
     link: ["v", "kind", "id", "shop", "expires"],
     allow: ["v", "kind", "id", "shop", "for", "agent", "each", "total", "per", "currency", "expires"],
   }[kind];
@@ -212,7 +219,8 @@ export function parseSignable(text: string): Signable {
     if (total === null || decimal(total) !== record.total) throw new Error("The payment's total should be written like 32.50.");
     if (total !== sum) throw new Error(`The payment's lines come to ${decimal(sum)}, not the ${record.total} it says.`);
     if (under && (typeof record.allow !== "string" || !/^allow_[A-Za-z0-9]{8,40}$/.test(record.allow))) throw new Error("A payment under an allowance names it by its allow_ id.");
-    signable = { v: 1, kind, id: record.id, ...(under ? { allow: record.allow as string } : {}), shop, cart: record.cart, items, total: record.total, currency: record.currency, expires: record.expires };
+    const by = asked ? plainName(record.by, "Who asked for the payment", 40) : null;
+    signable = { v: 1, kind, id: record.id, ...(under ? { allow: record.allow as string } : {}), ...(by ? { by } : {}), shop, cart: record.cart, items, total: record.total, currency: record.currency, expires: record.expires };
   }
   if (signableText(signable) !== text) throw new Error("The text to sign isn't written the one way it can be (key order, spacing), so it can't be signed.");
   return signable;
@@ -282,5 +290,6 @@ export function signableLine(signable: Signable): string {
   if (signable.kind === "link") return `Link your PayPal at ${signable.shop.name} to this board`;
   if (signable.kind === "allow") return `Let PureStrings spend up to ${amountText(signable.each, signable.currency)} a time and ${amountText(signable.total, signable.currency)} a ${signable.per} at ${signable.shop.name}, for ${signable.for}, until ${signable.expires.slice(0, 10)}`;
   const items = signable.items.map((item) => `${item.qty}× ${item.name}`).join("; ");
+  if (signable.by) return `${signable.by} asks to pay ${amountText(signable.total, signable.currency)} to ${signable.shop.name}: ${items}`;
   return `Pay ${amountText(signable.total, signable.currency)} to ${signable.shop.name}: ${items}`;
 }
