@@ -1,0 +1,11 @@
+{
+  "name": "@purestrings/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "description": "The payments PureStrings is made of: the one text your key signs, PayPal, allowances and the auditor.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
