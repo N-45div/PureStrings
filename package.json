@@ -1,0 +1,19 @@
+{
+  "name": "purestrings",
+  "private": true,
+  "type": "module",
+  "description": "An open-source PayPal layer for personal AI assistants: any assistant can shop, and only your own key can pay.",
+  "license": "AGPL-3.0-only",
+  "workspaces": ["packages/*"],
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "shop": "npm start -w @purestrings/shop",
+    "paypal:webhook": "node --no-warnings packages/shop/src/webhook.ts",
+    "test": "node --no-warnings --test \"packages/*/test/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}
