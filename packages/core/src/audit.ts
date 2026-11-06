@@ -3,9 +3,9 @@ import { cents, type PayPalEvent } from "./paypal.ts";
 import type { SignRequest, Store } from "./store.ts";
 
 /**
- * The auditor: PayPal's own record of the shop's charges, checked against what your boards signed. Every charge
- * should be a payment a board of yours signed, for exactly that amount, or one PureStrings signed under an allowance a
- * board signed. One that isn't is flagged, with why, so a dispute can be drafted. PayPal's record comes from the
+ * The auditor: PayPal's own record of the shop's charges, checked against what your keys signed. Every charge
+ * should be a payment a key of yours signed, for exactly that amount, or one PureStrings signed under an allowance a
+ * key of yours signed. One that isn't is flagged, with why, so a dispute can be drafted. PayPal's record comes from the
  * events it makes for the app's webhooks (every capture, however it was made) and from looking up each order
  * PureStrings knows of.
  */
@@ -23,7 +23,7 @@ export interface PayPalCharge {
   readonly at: string;
 }
 
-/** signed: a board of yours signed it. allowed: PureStrings signed it under an allowance a board signed. unsigned and mismatch are flagged. */
+/** signed: a key of yours signed it. allowed: PureStrings signed it under an allowance a key signed. unsigned and mismatch are flagged. */
 export type Verdict = "signed" | "allowed" | "unsigned" | "mismatch";
 
 export interface Finding {
@@ -83,18 +83,18 @@ export function chargesFromEvents(events: readonly PayPalEvent[]): PayPalCharge[
   return [...byCapture.values()].map((charge) => (refunded.has(charge.captureId) ? { ...charge, status: "REFUNDED" } : charge));
 }
 
-/** A board's signature that checks out: of exactly this text, by this key. */
+/** A key's signature that checks out: of exactly this text, by this key. */
 function checks(request: SignRequest): boolean {
   return Boolean(request.signature && request.key && signedBy(request.text, request.signature, request.key));
 }
 
-/** One charge, checked against what your boards (and allowances) signed. */
+/** One charge, checked against what your keys (and allowances) signed. */
 export function auditCharge(store: Store, charge: PayPalCharge): Finding {
   const money = (value: string, currency: string) => amountText(value, currency || "USD");
   const took = `PayPal took ${money(charge.amount, charge.currency)} (capture ${charge.captureId})`;
   const request = charge.invoiceId ? store.signRequest(charge.invoiceId) : null;
-  if (!request || request.kind !== "buy") return { charge, verdict: "unsigned", why: `${took}, but no board of yours signed a payment${charge.invoiceId ? ` by the id it was charged with (${charge.invoiceId})` : ""}.`, signId: null };
-  if (!request.signature || !request.key) return { charge, verdict: "unsigned", why: `${took} for a payment no board signed: it was ${request.status === "declined" ? "declined" : request.status === "expired" ? "left to expire" : "never signed"}.`, signId: request.id };
+  if (!request || request.kind !== "buy") return { charge, verdict: "unsigned", why: `${took}, but no key of yours signed a payment${charge.invoiceId ? ` by the id it was charged with (${charge.invoiceId})` : ""}.`, signId: null };
+  if (!request.signature || !request.key) return { charge, verdict: "unsigned", why: `${took} for a payment no key signed: it was ${request.status === "declined" ? "declined" : request.status === "expired" ? "left to expire" : "never signed"}.`, signId: request.id };
   if (!checks(request)) return { charge, verdict: "unsigned", why: `${took}, but the signature PureStrings holds for that payment doesn't check out.`, signId: request.id };
   const payment = parseSignable(request.text) as Payment;
   if (cents(charge.amount) !== cents(payment.total) || charge.currency !== payment.currency) {
@@ -105,13 +105,13 @@ export function auditCharge(store: Store, charge: PayPalCharge): Finding {
     const board = (given?.result as { key?: unknown } | null)?.key;
     const allowance = given?.kind === "allow" ? (parseSignable(given.text) as Allowance) : null;
     if (!given || !allowance || !checks(given) || given.key !== board || allowance.agent !== request.key) {
-      return { charge, verdict: "unsigned", why: `${took} under an allowance (${payment.allow}) that no board of yours signed for PureStrings' key.`, signId: request.id };
+      return { charge, verdict: "unsigned", why: `${took} under an allowance (${payment.allow}) that no key of yours signed for PureStrings' key.`, signId: request.id };
     }
     if ((cents(payment.total) ?? 0) > (cents(allowance.each) ?? 0)) return { charge, verdict: "mismatch", why: `${took} under the ${allowance.for} allowance, more than its ${money(allowance.each, allowance.currency)} a time.`, signId: request.id };
-    return { charge, verdict: "allowed", why: `PureStrings paid it under your ${allowance.for} allowance, which your board signed.`, signId: request.id };
+    return { charge, verdict: "allowed", why: `PureStrings paid it under your ${allowance.for} allowance, which your key signed.`, signId: request.id };
   }
   const board = store.signer(request.key);
-  return { charge, verdict: "signed", why: `Signed by ${board ? `${board.name} (${board.fingerprint})` : "a board of yours"}, for exactly this amount.`, signId: request.id };
+  return { charge, verdict: "signed", why: `Signed by ${board ? `${board.name} (${board.fingerprint})` : "a key of yours"}, for exactly this amount.`, signId: request.id };
 }
 
 /** Every charge checked, newest first; a charge seen twice (in the events and by its order) counts once. */
@@ -122,7 +122,7 @@ export function audit(store: Store, charges: readonly PayPalCharge[]): Finding[]
 }
 
 /**
- * Whether a finding needs you: a charge no board signed, or one for a different amount than was signed, that's
+ * Whether a finding needs you: a charge no key signed, or one for a different amount than was signed, that's
  * still taken. One refunded or reversed since has given the money back.
  */
 export function flagged(finding: Finding): boolean {

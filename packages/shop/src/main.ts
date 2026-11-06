@@ -11,8 +11,8 @@ import { ShopStore } from "./store.ts";
  *   SHOP_PORT            default 7800
  *   SHOP_HOST            default 127.0.0.1
  *   SHOP_PUBLIC_URL      how payers and PureStrings reach it (default http://localhost:<port>): PayPal sends payers back
- *                        under it, and its host is the shop's id in what boards sign
- *   SHOP_DB              where it keeps carts, linked boards and orders (default shop.db)
+ *                        under it, and its host is the shop's id in what keys sign
+ *   SHOP_DB              where it keeps carts, linked keys and orders (default shop.db)
  *   SHOP_CATALOG         what it sells (default the catalog.json beside this package)
  *   SHOP_ADMIN_TOKEN     for its own pages: every order, and refunds
  *   PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET   its PayPal app (the sandbox's, from PayPal's Developer Dashboard)

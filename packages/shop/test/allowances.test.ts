@@ -7,7 +7,7 @@ import { shopApp } from "../src/shop.ts";
 import { ShopStore } from "../src/store.ts";
 
 /**
- * Allowances at the shop: a linked board signs once that PureStrings' key may pay here within limits, and the shop
+ * Allowances at the shop: a linked key signs once that PureStrings' key may pay here within limits, and the shop
  * holds PureStrings to them. Every refusal happens before PayPal is asked; the charge itself runs against PayPal's
  * sandbox with PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET and PAYPAL_SANDBOX_VAULT_ID (a payer's PayPal saved with
  * the app), and is skipped without them.
@@ -33,7 +33,7 @@ function setUp(withPayPal = false) {
   };
   const board = keyPair();
   const agent = keyPair();
-  // The board linked here earlier (with the sandbox payer's saved PayPal, when there's one to charge).
+  // The key linked here earlier (with the sandbox payer's saved PayPal, when there's one to charge).
   store.saveCustomer(board.key, vaultId ?? "VAULT-NOT-CHARGED", "buyer@example.com");
   const allowance = (change: Partial<Allowance> = {}): Allowance => ({
     v: 1,
@@ -64,7 +64,7 @@ function setUp(withPayPal = false) {
 }
 
 describe("an allowance at the shop", () => {
-  it("is taken only from a linked board's own signature, for this shop, for a month at most", async () => {
+  it("is taken only from a linked key's own signature, for this shop, for a month at most", async () => {
     const { give, allowance, agent } = setUp();
     const stranger = keyPair();
     assert.match((await give(allowance(), stranger)).body.error, /isn't linked to a PayPal/);
@@ -82,11 +82,11 @@ describe("an allowance at the shop", () => {
     const { store, give, allowance, payment, board, call } = setUp();
     const allowed = allowance({ id: "allow_000000000002" });
     await give(allowed);
-    assert.match((await payment(allowed.id, [{ sku: "beans-house", qty: 1 }], board)).body.error, /Only the key the allowance names/, "even the board pays under it only through PureStrings' key");
+    assert.match((await payment(allowed.id, [{ sku: "beans-house", qty: 1 }], board)).body.error, /Only the key the allowance names/, "even the key pays under it only through PureStrings' key");
     assert.match((await payment(allowed.id, [{ sku: "beans-house", qty: 1 }], keyPair())).body.error, /Only the key the allowance names/);
     const each = await payment(allowed.id, [{ sku: "beans-house", qty: 2 }]);
     assert.equal(each.status, 403);
-    assert.equal(each.body.error, "$24.00 is more than the $20.00 a time the allowance lets PureStrings pay. Nothing was charged: your board can sign it instead.");
+    assert.equal(each.body.error, "$24.00 is more than the $20.00 a time the allowance lets PureStrings pay. Nothing was charged: your key can sign it instead.");
     // $40 already spent under it this week.
     store.startOrder({ paymentId: "pay_earlier00000001", cartId: "cart_earlier", fingerprint: "x", text: "{}", signature: "x", total: "40.00", currency: "USD", allowance: allowed.id });
     const total = await payment(allowed.id, [{ sku: "beans-house", qty: 1 }]);
@@ -98,7 +98,7 @@ describe("an allowance at the shop", () => {
     assert.match((await payment("allow_nothinghere01", [{ sku: "filters", qty: 1 }])).body.error, /no such allowance/);
   });
 
-  it("stops at once, signed by the board or the key it names, and nothing more is paid under it", async () => {
+  it("stops at once, signed by the key or the key it names, and nothing more is paid under it", async () => {
     const { give, allowance, payment, call, agent, board } = setUp();
     const allowed = allowance({ id: "allow_000000000003" });
     await give(allowed);
@@ -111,7 +111,7 @@ describe("an allowance at the shop", () => {
     assert.equal((await call("POST", `/allowances/${other.id}/stop`, { signature: board.sign(`stop ${other.id}`) })).body.allowance.status, "stopped");
   });
 
-  it("charges the board's PayPal for a payment PureStrings' key signs under it", { skip: !paypal && "set PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET and PAYPAL_SANDBOX_VAULT_ID to charge PayPal's sandbox" }, async () => {
+  it("charges the key's PayPal for a payment PureStrings' key signs under it", { skip: !paypal && "set PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET and PAYPAL_SANDBOX_VAULT_ID to charge PayPal's sandbox" }, async () => {
     const { give, allowance, payment, call } = setUp(true);
     const allowed = allowance({ id: `allow_${Date.now().toString(16)}aa` });
     await give(allowed);

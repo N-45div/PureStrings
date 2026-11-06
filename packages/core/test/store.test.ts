@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { fingerprint } from "../src/countersign.ts";
 import { type Change, Store } from "../src/store.ts";
 
-/** A board's raw public key, as it says it. */
+/** A key's raw public key, as it says it. */
 function boardKey(): string {
   const jwk = generateKeyPairSync("ec", { namedCurve: "P-256" }).publicKey.export({ format: "jwk" });
   return Buffer.concat([Buffer.from([4]), Buffer.from(jwk.x!, "base64url"), Buffer.from(jwk.y!, "base64url")]).toString("base64url");
@@ -23,7 +23,7 @@ describe("what PureStrings keeps", () => {
     assert.equal(store.agentByToken(token), null);
   });
 
-  it("pins each key once, a board's to the board, and forgets it with the board", () => {
+  it("pins each key once, a key's to the key, and forgets it with the key", () => {
     const store = new Store();
     const changes: Change[] = [];
     store.events.on("change", (change: Change) => changes.push(change));
@@ -37,7 +37,7 @@ describe("what PureStrings keeps", () => {
     assert.throws(() => store.addSigner({ key: boardKey(), name: "Swapped", deviceId: device.id }), /already added/);
     store.addSigner({ key: boardKey(), name: "In my browser" });
     assert.equal(store.removeDevice(device.id), true);
-    assert.equal(store.signer(key), null, "a board's key goes with it");
+    assert.equal(store.signer(key), null, "a button's key goes with it");
     assert.equal(store.signers().length, 1);
     assert.ok(changes.every((change) => change.kind === "keys"));
   });

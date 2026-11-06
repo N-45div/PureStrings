@@ -18,7 +18,7 @@ const vaultId = process.env.PAYPAL_SANDBOX_VAULT_ID?.trim();
 const sandbox = PayPal.fromEnv(process.env);
 const noVault = !(sandbox && vaultId) && "set PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET and PAYPAL_SANDBOX_VAULT_ID to charge PayPal's sandbox";
 
-/** A key as the board makes one: its raw P-256 point, and r‖s signatures. */
+/** A key as the key makes one: its raw P-256 point, and r‖s signatures. */
 function key() {
   const { privateKey, publicKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
   const jwk = publicKey.export({ format: "jwk" });
@@ -93,7 +93,7 @@ describe("linking a key to your PayPal", () => {
     const mine = key();
     const started = await call("POST", "/links", { key: mine.key });
     assert.equal(started.status, 201);
-    assert.match((await call("POST", `/links/${started.body.link.id}/signed`, { signature: key().sign(started.body.link.text) })).body.error, /isn't this board's signature/);
+    assert.match((await call("POST", `/links/${started.body.link.id}/signed`, { signature: key().sign(started.body.link.text) })).body.error, /isn't this key's signature/);
     const signed = await call("POST", `/links/${started.body.link.id}/signed`, { signature: mine.sign(started.body.link.text) });
     assert.equal(signed.status, 503);
     assert.match(signed.body.error, /PAYPAL_CLIENT_ID/);
@@ -118,7 +118,7 @@ describe("checking out with a key's signature", () => {
     const signedBy = (what: string, by = signer) => ({ text: what, signature: by.sign(what), key: by.key });
     const refusals: [string, unknown, number, RegExp][] = [
       ["a key that isn't linked", signedBy(text, stranger), 401, /isn't linked/],
-      ["another key's signature", { text, signature: stranger.sign(text), key: signer.key }, 401, /isn't this board's signature/],
+      ["another key's signature", { text, signature: stranger.sign(text), key: signer.key }, 401, /isn't this key's signature/],
       ["a different total", signedBy(signableText({ ...payment, items: [{ ...payment.items[0]!, price: "1.00" }, payment.items[1]!], total: "10.50" })), 409, /isn't this cart/],
       ["a gift card the shop never priced", signedBy(signableText({ ...payment, items: [...payment.items, { name: "Gift card, $200", qty: 1, price: "200.00" }], total: "232.50" })), 409, /isn't this cart/],
       ["another shop", signedBy(signableText({ ...payment, shop: { id: "bean-and-leaf.example", name: "Bean & Leaf" } })), 400, /not this shop/],

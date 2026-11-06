@@ -31,18 +31,18 @@ export { ShopStore } from "./store.ts";
 
 /**
  * Bean & Leaf: a demo shop that sells to agents, through PayPal's sandbox. An agent can look through the
- * catalog and have a cart priced, but the shop charges your PayPal only for a cart your board signed:
+ * catalog and have a cart priced, but the shop charges your PayPal only for a cart your key signed:
  *
- * 1. Link once. Your board signs the shop's link text, you approve saving your PayPal with the shop on
- *    PayPal's own page (Vault), and the shop keeps that saved PayPal against your board's public key.
- * 2. Buy. The agent has a cart priced, PureStrings writes the payment for your board to show and sign (the shop,
+ * 1. Link once. Your key signs the shop's link text, you approve saving your PayPal with the shop on
+ *    PayPal's own page (Vault), and the shop keeps that saved PayPal against your key's public key.
+ * 2. Buy. The agent has a cart priced, PureStrings writes the payment for your key to show and sign (the shop,
  *    each line, the total, an expiry), and sends the signed text here. The shop checks the signature against the
  *    key linked to your PayPal and the text against its own cart, line by line, and only then charges your
  *    saved PayPal, once per payment.
  *
  * It runs on its own (`npm start -w @purestrings/shop`), or inside PureStrings' server at /shop, for one-service
  * demos; either way PureStrings reaches it over HTTP only, as it would any shop. The shop keeps each order with the
- * text and signature it was paid for: proof, in a dispute, of what the payer's board agreed to.
+ * text and signature it was paid for: proof, in a dispute, of what the payer's key agreed to.
  */
 
 export interface ShopOptions {
@@ -52,7 +52,7 @@ export interface ShopOptions {
   readonly paypal: PayPal | null;
   /** Where the shop is reached from outside: PayPal sends payers back under it. */
   readonly publicUrl: string;
-  /** The shop's id in what boards sign: its address's host unless given. */
+  /** The shop's id in what keys sign: its address's host unless given. */
   readonly id?: string;
   /** For the shop's own pages (all orders, refunds), as a Bearer token; without it they're closed. */
   readonly adminToken?: string;
@@ -107,7 +107,7 @@ export function shopApp(options: ShopOptions): Hono {
   const app = new Hono();
   app.use("*", bodyLimit({ maxSize: 64 * 1024, onError: (c) => fail(c, 400, "That's too big for this shop.") }));
 
-  /** What the shop is: its id and name as boards see them, what it sells in, and whether PayPal is set up. */
+  /** What the shop is: its id and name as keys see them, what it sells in, and whether PayPal is set up. */
   app.get("/", (c) =>
     c.json({
       shop,
@@ -157,7 +157,7 @@ export function shopApp(options: ShopOptions): Hono {
     return cart ? c.json({ cart: cartView(cart, shop) }) : fail(c, 404, "There's no such cart.");
   });
 
-  /** Starts linking a board: the text it signs to say "this board pays for my carts here". */
+  /** Starts linking a key: the text it signs to say "this key pays for my carts here". */
   app.post("/links", async (c) => {
     let key: string;
     try {
@@ -170,14 +170,14 @@ export function shopApp(options: ShopOptions): Hono {
     return c.json({ link: { id: link.id, text: link.text, expires: link.expires } }, 201);
   });
 
-  /** The board signed the link: PayPal's page for saving the payer's PayPal with the shop, to open next. */
+  /** The key signed the link: PayPal's page for saving the payer's PayPal with the shop, to open next. */
   app.post("/links/:id/signed", async (c) => {
     const link = store.link(c.req.param("id"));
     if (!link) return fail(c, 404, "There's no such link.");
     if (link.status !== "unsigned") return fail(c, 409, `This link is already ${link.status}.`);
     if (Date.parse(link.expires) <= now()) return fail(c, 410, "This link expired before it was signed; start again.");
     const { signature, returnUrl } = await body(c);
-    if (!signedBy(link.text, String(signature ?? ""), link.key)) return fail(c, 401, "That isn't this board's signature of the link.");
+    if (!signedBy(link.text, String(signature ?? ""), link.key)) return fail(c, 401, "That isn't this key's signature of the link.");
     if (returnUrl !== undefined && !returnTo(returnUrl)) return fail(c, 400, "returnUrl should be an http(s) address.");
     if (!paypal) return noPayPal(c);
     const back = `${publicUrl}/links/${link.id}/back`;
@@ -186,7 +186,7 @@ export function shopApp(options: ShopOptions): Hono {
         returnUrl: back,
         cancelUrl: withQuery(back, { cancelled: "1" }),
         brand: shop.name,
-        description: `${shop.name} charges this PayPal only for carts your board signs`,
+        description: `${shop.name} charges this PayPal only for carts your key signs`,
         requestId: link.id,
       });
       if (!store.moveLink(link.id, "unsigned", { status: "approving", setupTokenId: started.setupTokenId, ...(returnTo(returnUrl) ? { returnUrl: returnTo(returnUrl)! } : {}) })) return fail(c, 409, "This link was signed twice at once.");
@@ -196,7 +196,7 @@ export function shopApp(options: ShopOptions): Hono {
     }
   });
 
-  /** Where PayPal sends the payer back: their PayPal is saved, and linked to the board that signed. */
+  /** Where PayPal sends the payer back: their PayPal is saved, and linked to the key that signed. */
   app.get("/links/:id/back", async (c) => {
     const link = store.link(c.req.param("id"));
     const done = (title: string, words: string, query: Record<string, string>, status: 200 | 400 | 409 | 502 = 200) => {
@@ -205,7 +205,7 @@ export function shopApp(options: ShopOptions): Hono {
       return c.html(page(title, words), status);
     };
     if (!link) return c.html(page("Link not found", "This link isn't one this shop made."), 404);
-    if (link.status === "linked") return done("Already linked", `Your PayPal is linked to your board at ${shop.name}.`, { paypal: "linked" });
+    if (link.status === "linked") return done("Already linked", `Your PayPal is linked to your key at ${shop.name}.`, { paypal: "linked" });
     if (link.status !== "approving" || !link.setupTokenId) return done("Can't link this", `This link is ${link.status}; start again from PureStrings.`, { paypal: link.status }, 409);
     if (c.req.query("cancelled")) {
       store.moveLink(link.id, "approving", { status: "cancelled" });
@@ -218,7 +218,7 @@ export function shopApp(options: ShopOptions): Hono {
       const saved = await paypal.savePayPal(link.setupTokenId, `save-${link.id}`);
       store.saveCustomer(link.key, saved.vaultId, saved.email);
       store.moveLink(link.id, "approving", { status: "linked" });
-      return done("PayPal linked", `${shop.name} will charge ${saved.email ?? "your PayPal"} only for carts your board signs. You can close this page.`, { paypal: "linked" });
+      return done("PayPal linked", `${shop.name} will charge ${saved.email ?? "your PayPal"} only for carts your key signs. You can close this page.`, { paypal: "linked" });
     } catch (error) {
       const why = error instanceof Error ? error.message : String(error);
       store.moveLink(link.id, "approving", { status: "failed", error: why });
@@ -232,7 +232,7 @@ export function shopApp(options: ShopOptions): Hono {
     return c.json({ link: linkView(link, link.status === "linked" ? (store.customer(link.key)?.email ?? null) : null) });
   });
 
-  /** Whether a board is linked here, by its key: so PureStrings can say so before it asks the board to sign. */
+  /** Whether a key is linked here, by its key: so PureStrings can say so before it asks the key to sign. */
   app.post("/boards", async (c) => {
     const { key } = await body(c);
     let customer = null;

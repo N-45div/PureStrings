@@ -6,7 +6,7 @@ import { fingerprint } from "./countersign.ts";
 
 /**
  * What PureStrings keeps, in one SQLite file: the assistants allowed to shop for you (each by its own token), your
- * keys (a board on your desk, or one in your browser), everything a key was asked to sign and what came of it, a
+ * keys (a button on your desk, or one in your browser), everything a key was asked to sign and what came of it, a
  * few settings of its own, and what the auditor found at PayPal.
  */
 
@@ -18,7 +18,7 @@ export interface Agent {
   readonly lastSeenAt: string | null;
 }
 
-/** A board of yours that connects on its own (Wi-Fi or USB), by the token you gave it. */
+/** A button of yours that connects on its own (Wi-Fi or USB), by the token you gave it. */
 export interface Device {
   readonly id: string;
   readonly name: string;
@@ -26,13 +26,13 @@ export interface Device {
   readonly lastSeenAt: string | null;
 }
 
-/** A key that signs for you: a board, or one in a browser. Only its signature pays. */
+/** A key that signs for you: a button, or one in a browser. Only its signature pays. */
 export interface Signer {
   /** Its P-256 public key, raw and base64url, written the one way. */
   readonly key: string;
   readonly fingerprint: string;
   readonly name: string;
-  /** The board it is, when it's one; null for a key in a browser. */
+  /** The button it is, when it's one; null for a key in a browser. */
   readonly deviceId: string | null;
   readonly createdAt: string;
   readonly lastSignedAt: string | null;
@@ -136,13 +136,13 @@ export class Store {
     return removed;
   }
 
-  // Boards, and the keys that sign -------------------------------------------------------------------
+  // Buttons, and the keys that sign -------------------------------------------------------------------
 
-  /** Adds a board that connects on its own; its token is shown this once. */
+  /** Adds a button that connects on its own; its token is shown this once. */
   addDevice(name: string): { readonly device: Device; readonly token: string } {
     const token = newToken();
     const id = newId("device");
-    this.db.prepare("INSERT INTO devices (id, name, token_hash, created_at, last_seen_at) VALUES (?, ?, ?, ?, NULL)").run(id, name.trim().slice(0, 60) || "A board", hashToken(token), now());
+    this.db.prepare("INSERT INTO devices (id, name, token_hash, created_at, last_seen_at) VALUES (?, ?, ?, ?, NULL)").run(id, name.trim().slice(0, 60) || "A button", hashToken(token), now());
     this.changed({ kind: "keys" });
     return { device: this.device(id)!, token };
   }
@@ -163,7 +163,7 @@ export class Store {
     return (this.db.prepare("SELECT * FROM devices ORDER BY created_at").all() as Row[]).map(toDevice);
   }
 
-  /** Takes a board off, and its key with it: it signs for nothing from then on. */
+  /** Takes a button off, and its key with it: it signs for nothing from then on. */
   removeDevice(id: string): boolean {
     this.db.prepare("DELETE FROM signers WHERE device_id = ?").run(id);
     const removed = Number(this.db.prepare("DELETE FROM devices WHERE id = ?").run(id).changes) > 0;
@@ -171,12 +171,12 @@ export class Store {
     return removed;
   }
 
-  /** Adds a key that signs for you; it's pinned from now on. A key or board seen already is refused. */
+  /** Adds a key that signs for you; it's pinned from now on. A key or button seen already is refused. */
   addSigner(input: { readonly key: string; readonly name: string; readonly deviceId?: string | null }): Signer {
     const result = this.db
       .prepare("INSERT INTO signers (key, fingerprint, name, device_id, created_at, last_signed_at) VALUES (?, ?, ?, ?, ?, NULL) ON CONFLICT DO NOTHING")
       .run(input.key, fingerprint(input.key), input.name.trim() || "A key", input.deviceId ?? null, now());
-    if (Number(result.changes) !== 1) throw new Error("That key, or that board's key, is already added.");
+    if (Number(result.changes) !== 1) throw new Error("That key, or that button's key, is already added.");
     this.changed({ kind: "keys" });
     return this.signer(input.key)!;
   }
@@ -186,7 +186,7 @@ export class Store {
     return row ? toSigner(row) : null;
   }
 
-  /** The key a board of yours signs with, pinned when it was first seen. */
+  /** The key a button of yours signs with, pinned when it was first seen. */
   signerForDevice(deviceId: string): Signer | null {
     const row = this.db.prepare("SELECT * FROM signers WHERE device_id = ?").get(deviceId) as Row | undefined;
     return row ? toSigner(row) : null;

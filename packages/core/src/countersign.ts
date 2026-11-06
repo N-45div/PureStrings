@@ -2,14 +2,14 @@ import { createHash, createPublicKey, type KeyObject, randomBytes, verify } from
 import { cents, decimal } from "./paypal.ts";
 
 /**
- * Countersign: what your board signs before an agent's purchase can be paid for. The board (the PureStrings button,
- * or the canvas's virtual one) never goes online. It's shown the exact text below, shows the facts in it on its
+ * Countersign: what your key signs before an agent's purchase can be paid for. The key (the PureStrings button,
+ * or the key in your browser) never goes online. It's shown the exact text below, shows the facts in it on its
  * own screen (the shop, each item, the total), and signs that text with a P-256 key that never leaves it once
  * you hold the button. The shop charges your saved PayPal only for a cart signed by the key you linked there, so
  * an agent that's tricked, or a PureStrings that's been broken into, can make a cart but can't pay for one.
  *
  * The text is JSON with its keys in one fixed order and nothing extra, so there's one way to write any payment:
- * a text that isn't written exactly that way is refused, by PureStrings, the shop and the board alike, and two of
+ * a text that isn't written exactly that way is refused, by PureStrings, the shop and the key alike, and two of
  * them can't read one text two ways.
  */
 
@@ -34,7 +34,7 @@ export interface Payment {
   readonly id: string;
   /**
    * The allowance it's paid under, when there is one: then PureStrings signs it, with the key that allowance names,
-   * instead of your board, and the shop checks it fits the allowance's limits.
+   * instead of your key, and the shop checks it fits the allowance's limits.
    */
   readonly allow?: string;
   /**
@@ -52,7 +52,7 @@ export interface Payment {
   readonly expires: string;
 }
 
-/** Linking a board to your PayPal at a shop: from then on, the shop takes this board's signature for your carts. */
+/** Linking a key to your PayPal at a shop: from then on, the shop takes this key's signature for your carts. */
 export interface LinkRequest {
   readonly v: 1;
   readonly kind: "link";
@@ -64,20 +64,20 @@ export interface LinkRequest {
 /** How long an allowance's limit runs over: a day is any 24 hours, a week any 7 days, a month any 30 days. */
 export const PERIODS = { day: 86_400_000, week: 7 * 86_400_000, month: 30 * 86_400_000 } as const;
 export type Period = keyof typeof PERIODS;
-/** The longest an allowance lasts before your board is asked again. */
+/** The longest an allowance lasts before your key is asked again. */
 export const MAX_ALLOWANCE_DAYS = 31;
 
 /**
- * An allowance: your board says once that PureStrings may pay at this shop on its own, within these limits, until it
- * expires. Each payment under it is signed by PureStrings' own key (`agent`), not your board, and the shop takes it
- * only while it fits: at most `each` a time, and at most `total` in any `per`. Anything more comes to your board.
+ * An allowance: your key says once that PureStrings may pay at this shop on its own, within these limits, until it
+ * expires. Each payment under it is signed by PureStrings' own key (`agent`), not your key, and the shop takes it
+ * only while it fits: at most `each` a time, and at most `total` in any `per`. Anything more comes to your key.
  */
 export interface Allowance {
   readonly v: 1;
   readonly kind: "allow";
   readonly id: string;
   readonly shop: Payee;
-  /** What it's for, in a few words ("Groceries"): shown on the board. The limits are what count. */
+  /** What it's for, in a few words ("Groceries"): shown on the key. The limits are what count. */
   readonly for: string;
   /** PureStrings' own public key (raw P-256, base64url): only its signature counts for payments under this. */
   readonly agent: string;
@@ -92,9 +92,9 @@ export interface Allowance {
 
 export type Signable = Payment | LinkRequest | Allowance;
 
-/** The longest text a board is asked to sign (it fits the board's memory and one USB frame). */
+/** The longest text a key is asked to sign (it fits the key's memory and one USB frame). */
 export const MAX_SIGNABLE = 1_500;
-/** The most lines a cart may have: the board shows each of them before you sign. */
+/** The most lines a cart may have: the key shows each of them before you sign. */
 export const MAX_ITEMS = 12;
 const ID = /^[a-z]{2,8}_[A-Za-z0-9]{8,40}$/;
 const SHOP_ID = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*(:\d{1,5})?$/;
@@ -231,26 +231,26 @@ export function expired(signable: Pick<Signable, "expires">, now = Date.now()): 
   return Date.parse(signable.expires) <= now;
 }
 
-/** A board's public key: the uncompressed P-256 point (65 bytes, starting 0x04), base64url, as the board sends it. */
+/** A key's public key: the uncompressed P-256 point (65 bytes, starting 0x04), base64url, as the key sends it. */
 export function boardKey(raw: string): KeyObject {
-  if (typeof raw !== "string" || !/^[A-Za-z0-9_-]+$/.test(raw)) throw new Error("A board's key should be base64url.");
+  if (typeof raw !== "string" || !/^[A-Za-z0-9_-]+$/.test(raw)) throw new Error("A key should be base64url.");
   const bytes = Buffer.from(raw, "base64url");
-  if (bytes.length !== 65 || bytes[0] !== 4) throw new Error("A board's key should be a P-256 public key, uncompressed (65 bytes).");
+  if (bytes.length !== 65 || bytes[0] !== 4) throw new Error("A key should be a P-256 public key, uncompressed (65 bytes).");
   try {
     return createPublicKey({ key: { kty: "EC", crv: "P-256", x: bytes.subarray(1, 33).toString("base64url"), y: bytes.subarray(33).toString("base64url") }, format: "jwk" });
   } catch {
-    throw new Error("That isn't a point on P-256, so it can't be a board's key.");
+    throw new Error("That isn't a point on P-256, so it can't be a key.");
   }
 }
 
-/** A board's key written the one way: base64url has spare bits at its end, so one key could be written a few ways. */
+/** A key written the one way: base64url has spare bits at its end, so one key could be written a few ways. */
 export function keyText(raw: string): string {
   boardKey(raw);
   return Buffer.from(raw, "base64url").toString("base64url");
 }
 
 /**
- * A key's fingerprint, the same on the board's screen and in the canvas so you can see they match: the first
+ * A key's fingerprint, the same on the button's screen and in PureStrings so you can see they match: the first
  * 8 bytes of the SHA-256 of the raw key, in hex, in fours ("1A2B 3C4D 5E6F 7A8B").
  */
 export function fingerprint(raw: string): string {
@@ -259,8 +259,8 @@ export function fingerprint(raw: string): string {
 }
 
 /**
- * Whether `signature` is the board's signature of exactly this text: ECDSA P-256 with SHA-256 over its UTF-8
- * bytes, as r and s side by side (64 bytes, base64url), which is what WebCrypto and the board's mbedTLS give.
+ * Whether `signature` is the key's signature of exactly this text: ECDSA P-256 with SHA-256 over its UTF-8
+ * bytes, as r and s side by side (64 bytes, base64url), which is what WebCrypto and the key's mbedTLS give.
  */
 export function signedBy(text: string, signature: string, raw: string): boolean {
   if (typeof signature !== "string" || !/^[A-Za-z0-9_-]{86}$/.test(signature)) return false;
@@ -287,7 +287,7 @@ export function amountText(value: string, currency: string): string {
 
 /** What a signable asks, in one line: "Pay $32.50 to Bean & Leaf: 2× House blend beans, 1 lb; 1× Paper filters". */
 export function signableLine(signable: Signable): string {
-  if (signable.kind === "link") return `Link your PayPal at ${signable.shop.name} to this board`;
+  if (signable.kind === "link") return `Link your PayPal at ${signable.shop.name} to this key`;
   if (signable.kind === "allow") return `Let PureStrings spend up to ${amountText(signable.each, signable.currency)} a time and ${amountText(signable.total, signable.currency)} a ${signable.per} at ${signable.shop.name}, for ${signable.for}, until ${signable.expires.slice(0, 10)}`;
   const items = signable.items.map((item) => `${item.qty}× ${item.name}`).join("; ");
   if (signable.by) return `${signable.by} asks to pay ${amountText(signable.total, signable.currency)} to ${signable.shop.name}: ${items}`;

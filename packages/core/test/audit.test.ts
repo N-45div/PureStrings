@@ -16,7 +16,7 @@ const SHOP = { id: "localhost:7700", name: "Bean & Leaf" };
 const payment = (id: string, total: string, allow?: string): Payment => ({ v: 1, kind: "buy", id, ...(allow ? { allow } : {}), shop: SHOP, cart: "cart_1", items: [{ name: "Swiss water decaf beans, 12 oz", qty: 1, price: total }], total, currency: "USD", expires: "2026-11-06T10:10:00Z" });
 const charge = (invoiceId: string | null, amount = "14.00", captureId = "3C679366HH908993F"): PayPalCharge => ({ captureId, orderId: "5O190127TN364715T", invoiceId, amount, currency: "USD", status: "COMPLETED", at: "2026-11-06T10:01:00Z" });
 
-/** A payment a board signed and the shop was paid for, as PureStrings keeps it. */
+/** A payment a key signed and the shop was paid for, as PureStrings keeps it. */
 function signedPayment(store: Store, signer: { key: string; sign: (text: string) => string }, paid: Payment) {
   const text = signableText(paid);
   store.addSignRequest({ id: paid.id, kind: "buy", text, shop: "http://localhost:7700/shop", expires: paid.expires });
@@ -25,7 +25,7 @@ function signedPayment(store: Store, signer: { key: string; sign: (text: string)
 }
 
 describe("the auditor", () => {
-  it("passes a charge your board signed, for exactly that amount", () => {
+  it("passes a charge your key signed, for exactly that amount", () => {
     const store = new Store();
     const board = keyPair();
     store.addSigner({ key: board.key, name: "Desk button" });
@@ -36,14 +36,14 @@ describe("the auditor", () => {
     assert.equal(flagged(found), false);
   });
 
-  it("flags a charge no board signed, one for another amount, and one whose signature doesn't check out", () => {
+  it("flags a charge no key signed, one for another amount, and one whose signature doesn't check out", () => {
     const store = new Store();
     const board = keyPair();
     store.addSigner({ key: board.key, name: "Desk button" });
     signedPayment(store, board, payment("pay_000000000002", "14.00"));
     const rogue = auditCharge(store, charge("rogue-0001", "99.00"));
     assert.equal(rogue.verdict, "unsigned");
-    assert.equal(rogue.why, "PayPal took $99.00 (capture 3C679366HH908993F), but no board of yours signed a payment by the id it was charged with (rogue-0001).");
+    assert.equal(rogue.why, "PayPal took $99.00 (capture 3C679366HH908993F), but no key of yours signed a payment by the id it was charged with (rogue-0001).");
     assert.equal(auditCharge(store, charge(null)).verdict, "unsigned");
     const more = auditCharge(store, charge("pay_000000000002", "41.00"));
     assert.equal(more.verdict, "mismatch");
@@ -52,7 +52,7 @@ describe("the auditor", () => {
     const declined = payment("pay_000000000003", "14.00");
     store.addSignRequest({ id: declined.id, kind: "buy", text: signableText(declined), shop: "http://localhost:7700/shop", expires: declined.expires });
     store.moveSignRequest(declined.id, "waiting", { status: "declined" });
-    assert.match(auditCharge(store, charge(declined.id)).why, /for a payment no board signed: it was declined\./);
+    assert.match(auditCharge(store, charge(declined.id)).why, /for a payment no key signed: it was declined\./);
     // A signature that's someone else's.
     const forged = payment("pay_000000000004", "14.00");
     store.addSignRequest({ id: forged.id, kind: "buy", text: signableText(forged), shop: "http://localhost:7700/shop", expires: forged.expires });
@@ -60,7 +60,7 @@ describe("the auditor", () => {
     assert.match(auditCharge(store, charge(forged.id)).why, /doesn't check out/);
   });
 
-  it("passes a charge PureStrings signed under an allowance your board signed, and flags one under an allowance it didn't", () => {
+  it("passes a charge PureStrings signed under an allowance your key signed, and flags one under an allowance it didn't", () => {
     const store = new Store();
     const board = keyPair();
     const agent = keyPair();
@@ -72,8 +72,8 @@ describe("the auditor", () => {
     store.moveSignRequest(allowance.id, "signed", { status: "active" });
     signedPayment(store, agent, payment("pay_000000000005", "14.00", allowance.id));
     const under = auditCharge(store, charge("pay_000000000005"));
-    assert.deepEqual([under.verdict, under.why], ["allowed", "PureStrings paid it under your Groceries allowance, which your board signed."]);
-    // PureStrings' key, under an allowance that names another key: not one your board gave it.
+    assert.deepEqual([under.verdict, under.why], ["allowed", "PureStrings paid it under your Groceries allowance, which your key signed."]);
+    // PureStrings' key, under an allowance that names another key: not one your key gave it.
     signedPayment(store, keyPair(), payment("pay_000000000006", "14.00", allowance.id));
     assert.equal(auditCharge(store, charge("pay_000000000006")).verdict, "unsigned");
   });

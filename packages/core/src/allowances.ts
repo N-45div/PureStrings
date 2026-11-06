@@ -4,7 +4,7 @@ import { cents, decimal } from "./paypal.ts";
 import type { SignRequest, Store } from "./store.ts";
 
 /**
- * Allowances on PureStrings' side. Your board signs an allowance once; after that PureStrings pays for a cart that fits it
+ * Allowances on PureStrings' side. Your key signs an allowance once; after that PureStrings pays for a cart that fits it
  * on its own, signing the payment with its own key (made the first time, kept in PureStrings' settings). The shop
  * holds PureStrings to the same limits, so a PureStrings that's been broken into can spend no more than you allowed, and
  * only until the allowance ends or you stop it.
@@ -14,7 +14,7 @@ import type { SignRequest, Store } from "./store.ts";
 export interface AgentKey {
   readonly key: string;
   readonly fingerprint: string;
-  /** PureStrings' signature of exactly this text: ECDSA P-256 over SHA-256, r‖s, base64url, as a board signs. */
+  /** PureStrings' signature of exactly this text: ECDSA P-256 over SHA-256, r‖s, base64url, as a key signs. */
   sign(text: string): string;
 }
 
@@ -28,7 +28,7 @@ export function agentKey(store: Store): AgentKey {
   return { key, fingerprint: fingerprint(key), sign: (text) => sign("sha256", Buffer.from(text, "utf8"), { key: privateKey, dsaEncoding: "ieee-p1363" }).toString("base64url") };
 }
 
-/** An allowance your board signed and the shop took, with what's been paid under it in its current day, week or month. */
+/** An allowance your key signed and the shop took, with what's been paid under it in its current day, week or month. */
 export interface ActiveAllowance {
   readonly request: SignRequest;
   readonly allowance: Allowance;

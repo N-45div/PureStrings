@@ -32,13 +32,13 @@ export interface ShopContext {
 }
 
 /**
- * The shop's payments: allowances a linked board signed, checkout (a payment a board signed, or one PureStrings' key
+ * The shop's payments: allowances a linked key signed, checkout (a payment a key signed, or one PureStrings' key
  * signed under an allowance), the orders it keeps with what each was signed for, refunds, and PayPal's webhooks.
  */
 export function paymentRoutes(app: Hono, context: ShopContext): void {
   const { catalog, store, paypal, shop, now, noPayPal, admin } = context;
   const options = { webhookId: context.webhookId };
-  // Allowances: a linked board says once that PureStrings' key may pay here on its own, within limits ---------
+  // Allowances: a linked key says once that PureStrings' key may pay here on its own, within limits ---------
 
   /** Since when an allowance's limit counts: now, less its day, week or month. */
   const windowStart = (allowance: ShopAllowance) => new Date(now() - PERIODS[allowance.per]).toISOString();
@@ -68,7 +68,7 @@ export function paymentRoutes(app: Hono, context: ShopContext): void {
     return null;
   };
 
-  /** Takes an allowance a linked board signed: the key it names may then pay for carts here, within its limits. */
+  /** Takes an allowance a linked key signed: the key it names may then pay for carts here, within its limits. */
   app.post("/allowances", async (c) => {
     const { text, signature, key: given } = await body(c);
     if (typeof text !== "string" || typeof signature !== "string" || typeof given !== "string") return fail(c, 400, "Send the signed allowance as { text, signature, key }.");
@@ -83,10 +83,10 @@ export function paymentRoutes(app: Hono, context: ShopContext): void {
     if (allowance.kind !== "allow") return fail(c, 400, "That's not an allowance.");
     if (allowance.shop.id !== shop.id || allowance.shop.name !== shop.name) return fail(c, 400, `That allowance is for ${allowance.shop.name} (${allowance.shop.id}), not this shop.`);
     if (allowance.currency !== catalog.currency) return fail(c, 400, `${shop.name} sells in ${catalog.currency}, not ${allowance.currency}.`);
-    if (!store.customer(key)) return fail(c, 401, `This board isn't linked to a PayPal at ${shop.name}. Link it first.`);
-    if (!signedBy(text, signature, key)) return fail(c, 401, "That isn't this board's signature of the allowance.");
+    if (!store.customer(key)) return fail(c, 401, `This key isn't linked to a PayPal at ${shop.name}. Link it first.`);
+    if (!signedBy(text, signature, key)) return fail(c, 401, "That isn't this key's signature of the allowance.");
     if (expired(allowance, now())) return fail(c, 410, "This allowance has already ended.");
-    if (Date.parse(allowance.expires) > now() + (MAX_ALLOWANCE_DAYS + 1) * 86_400_000) return fail(c, 400, `An allowance lasts at most ${MAX_ALLOWANCE_DAYS} days; then the board is asked again.`);
+    if (Date.parse(allowance.expires) > now() + (MAX_ALLOWANCE_DAYS + 1) * 86_400_000) return fail(c, 400, `An allowance lasts at most ${MAX_ALLOWANCE_DAYS} days; then the key is asked again.`);
     const kept = store.addAllowance({ id: allowance.id, key, agent: allowance.agent, text, signature, each: allowance.each, total: allowance.total, per: allowance.per, currency: allowance.currency, expires: allowance.expires });
     if (kept.text !== text) return fail(c, 409, "Another allowance already has that id.");
     return c.json({ allowance: allowanceView(kept) }, 201);
@@ -97,20 +97,20 @@ export function paymentRoutes(app: Hono, context: ShopContext): void {
     return allowance ? c.json({ allowance: allowanceView(allowance) }) : fail(c, 404, "There's no such allowance.");
   });
 
-  /** Stops an allowance at once: signed ("stop" and its id) by the board that gave it, or by the key it names. */
+  /** Stops an allowance at once: signed ("stop" and its id) by the key that gave it, or by the key it names. */
   app.post("/allowances/:id/stop", async (c) => {
     const allowance = store.allowance(c.req.param("id"));
     if (!allowance) return fail(c, 404, "There's no such allowance.");
     const signature = String((await body(c)).signature ?? "");
     const said = `stop ${allowance.id}`;
-    if (!signedBy(said, signature, allowance.key) && !signedBy(said, signature, allowance.agent)) return fail(c, 401, "Stopping an allowance takes a signature from the board that gave it, or from the key it names.");
+    if (!signedBy(said, signature, allowance.key) && !signedBy(said, signature, allowance.agent)) return fail(c, 401, "Stopping an allowance takes a signature from the key that gave it, or from the key it names.");
     store.stopAllowance(allowance.id);
     return c.json({ allowance: allowanceView(store.allowance(allowance.id)!) });
   });
 
   /**
-   * Pays for a cart with a board's signature. Charged only when: the text is a payment to this shop, written the
-   * one way; the board's key is linked to a PayPal here; the signature is that key's, of exactly that text; it
+   * Pays for a cart with a key's signature. Charged only when: the text is a payment to this shop, written the
+   * one way; the key is linked to a PayPal here; the signature is that key's, of exactly that text; it
    * hasn't expired; and its lines, total and currency are the cart's own. Each payment is paid for once: sending
    * it again gives back the same order.
    */
@@ -131,17 +131,17 @@ export function paymentRoutes(app: Hono, context: ShopContext): void {
     }
     if (payment.kind !== "buy") return fail(c, 400, "That's not a payment.");
     if (payment.shop.id !== shop.id || payment.shop.name !== shop.name) return fail(c, 400, `That payment is to ${payment.shop.name} (${payment.shop.id}), not this shop.`);
-    // Under an allowance: signed by the PureStrings key it names, and charged to the PayPal of the board that signed it.
+    // Under an allowance: signed by the PureStrings key it names, and charged to the PayPal of the key that signed it.
     const allowance = payment.allow ? store.allowance(payment.allow) : null;
     if (payment.allow && !allowance) return fail(c, 403, "There's no such allowance here, so nothing was charged.");
     if (allowance && key !== allowance.agent) return fail(c, 401, "Only the key the allowance names can pay under it, so nothing was charged.");
     const customer = store.customer(allowance ? allowance.key : key);
-    if (!customer) return fail(c, 401, `This board isn't linked to a PayPal at ${shop.name}. Link it first.`);
-    if (!signedBy(text, signature, key)) return fail(c, 401, allowance ? "That isn't the allowance's key's signature of this payment, so nothing was charged." : "That isn't this board's signature of this payment, so nothing was charged.");
+    if (!customer) return fail(c, 401, `This key isn't linked to a PayPal at ${shop.name}. Link it first.`);
+    if (!signedBy(text, signature, key)) return fail(c, 401, allowance ? "That isn't the allowance's key's signature of this payment, so nothing was charged." : "That isn't this key's signature of this payment, so nothing was charged.");
 
     const earlier = store.orderForPayment(payment.id);
     if (earlier) {
-      if (earlier.fingerprint !== customer.fingerprint) return fail(c, 409, "This payment was already used by another board.");
+      if (earlier.fingerprint !== customer.fingerprint) return fail(c, 409, "This payment was already used by another key.");
       // Still with PayPal, or PayPal couldn't be reached last time: ask again (PayPal does a request it's seen once).
       if (earlier.status === "charging" && earlier.error && paypal) return charge(c, earlier, customer.vaultId);
       return c.json({ order: orderView(earlier) }, earlier.status === "charging" ? 202 : 200);
@@ -158,7 +158,7 @@ export function paymentRoutes(app: Hono, context: ShopContext): void {
     if (!same) return fail(c, 409, "The signed payment isn't this cart as the shop priced it, so nothing was charged.");
     // Checked and kept together, with nothing in between, so two payments at once can't both slip under the limit.
     const over = allowance ? overAllowance(allowance, payment) : null;
-    if (over) return fail(c, 403, `${over} Nothing was charged: your board can sign it instead.`);
+    if (over) return fail(c, 403, `${over} Nothing was charged: your key can sign it instead.`);
     if (!paypal) return noPayPal(c);
     const order = store.startOrder({ paymentId: payment.id, cartId: cart.id, fingerprint: customer.fingerprint, text, signature, total: payment.total, currency: payment.currency, ...(allowance ? { allowance: allowance.id } : {}) });
     // Another checkout of this payment got there first.
@@ -175,7 +175,7 @@ export function paymentRoutes(app: Hono, context: ShopContext): void {
         currency: cart.currency,
         invoiceId: order.paymentId,
         customId: cart.id,
-        description: order.allowance ? `${shop.name}, under allowance ${order.allowance} from board ${order.fingerprint}` : `${shop.name}, signed by board ${order.fingerprint}`,
+        description: order.allowance ? `${shop.name}, under allowance ${order.allowance} from key ${order.fingerprint}` : `${shop.name}, signed by key ${order.fingerprint}`,
         items: cart.items.map((line) => ({ name: line.name, sku: line.sku, quantity: line.qty, unitAmount: line.price })),
       });
       const done = store.finishOrder(order.id, { status: result.status === "PENDING" ? "pending" : "paid", paypalOrderId: result.orderId, captureId: result.captureId, error: null });

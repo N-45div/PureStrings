@@ -5,7 +5,7 @@ import { PayPal, PayPalError } from "../src/paypal.ts";
 
 /**
  * The PayPal client against PayPal's sandbox itself. Needs a sandbox app (PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET);
- * the charges need a payer's PayPal saved with that app too (PAYPAL_SANDBOX_VAULT_ID): link a board at the demo
+ * the charges need a payer's PayPal saved with that app too (PAYPAL_SANDBOX_VAULT_ID): link a key at the demo
  * shop with a sandbox Personal account, and the shop keeps it. Each charge is refunded straight after.
  */
 const env = process.env;
@@ -16,7 +16,7 @@ const noSaved = (noApp || (!vaultId && "set PAYPAL_SANDBOX_VAULT_ID: a payer's P
 
 describe("PayPal's sandbox", () => {
   it("gives a page for a payer to save their PayPal with the shop", { skip: noApp }, async () => {
-    const started = await paypal!.startSaving({ returnUrl: "https://huddle.example/shop/links/x/back", cancelUrl: "https://huddle.example/shop/links/x/back?cancelled=1", brand: "Bean & Leaf", description: "Test: carts your board signs" });
+    const started = await paypal!.startSaving({ returnUrl: "https://huddle.example/shop/links/x/back", cancelUrl: "https://huddle.example/shop/links/x/back?cancelled=1", brand: "Bean & Leaf", description: "Test: carts your key signs" });
     assert.match(started.setupTokenId, /^[A-Z0-9]{10,}$/);
     assert.match(started.approveUrl, /^https:\/\/www\.sandbox\.paypal\.com\//);
   });

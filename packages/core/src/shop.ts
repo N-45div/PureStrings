@@ -1,9 +1,9 @@
 import type { Payee } from "./countersign.ts";
 
 /**
- * A shop that sells to agents and charges only for carts your board signed (Bean & Leaf, packages/shop, is
- * one), reached over HTTP like any other: look through what it sells, have a cart priced, link your board to
- * your PayPal there, and check out with the board's signature. The shop prices carts, never PureStrings or an
+ * A shop that sells to agents and charges only for carts your key signed (Bean & Leaf, packages/shop, is
+ * one), reached over HTTP like any other: look through what it sells, have a cart priced, link your key to
+ * your PayPal there, and check out with the key's signature. The shop prices carts, never PureStrings or an
  * assistant, and the shop checks the signature again before it charges.
  */
 
@@ -32,7 +32,7 @@ export interface ShopOrder {
   /** The payment's one-time id. */
   readonly payment: string;
   readonly cart: string;
-  /** The fingerprint of the board that signed it. */
+  /** The fingerprint of the key that signed it. */
   readonly board: string;
   /** paid, or pending while PayPal reviews it; charging while PayPal is asked; failed, refunded, reversed. */
   readonly status: string;
@@ -55,22 +55,22 @@ export class ShopError extends Error {
 
 export interface ShopClient {
   readonly url: string;
-  /** The shop as boards see it, what it sells in, and whether its PayPal is set up. */
+  /** The shop as keys see it, what it sells in, and whether its PayPal is set up. */
   about(): Promise<{ readonly shop: Payee; readonly currency: string; readonly paypal: string | null; readonly about: string }>;
   search(ask: string, limit?: number): Promise<{ readonly shop: Payee; readonly products: readonly ShopProduct[] }>;
   price(items: readonly CartLine[]): Promise<PricedCart>;
-  /** Pays for a priced cart with the board's signature of the payment written for it. */
+  /** Pays for a priced cart with the key's signature of the payment written for it. */
   checkout(signed: { readonly text: string; readonly signature: string; readonly key: string }): Promise<ShopOrder>;
-  /** Starts linking a board: the text it signs. */
+  /** Starts linking a key: the text it signs. */
   startLink(key: string): Promise<{ readonly id: string; readonly text: string; readonly expires: string }>;
-  /** The board signed the link: PayPal's page, for saving your PayPal with the shop, to open next. */
+  /** The key signed the link: PayPal's page, for saving your PayPal with the shop, to open next. */
   signedLink(id: string, signature: string, returnUrl?: string): Promise<{ readonly approveUrl: string }>;
   link(id: string): Promise<{ readonly id: string; readonly status: string; readonly paypal: string | null; readonly error: string | null }>;
-  /** Whether a board is linked to a PayPal at the shop. */
+  /** Whether a key is linked to a PayPal at the shop. */
   board(key: string): Promise<{ readonly linked: boolean; readonly paypal: string | null }>;
-  /** Gives the shop an allowance a linked board signed: from then on, the key it names pays within its limits. */
+  /** Gives the shop an allowance a linked key signed: from then on, the key it names pays within its limits. */
   allowance(signed: { readonly text: string; readonly signature: string; readonly key: string }): Promise<ShopAllowanceView>;
-  /** Stops an allowance at the shop, with the signature of "stop" and its id by the key it names (or the board). */
+  /** Stops an allowance at the shop, with the signature of "stop" and its id by the key it names, or by your key. */
   stopAllowance(id: string, signature: string): Promise<ShopAllowanceView>;
 }
 
@@ -128,10 +128,10 @@ export function shopClient(url: string, fetcher: typeof fetch = globalThis.fetch
     search: (ask, limit = 8) => call("search its catalog", "GET", `/catalog?q=${encodeURIComponent(ask.slice(0, 500))}&limit=${limit}`),
     price: async (items) => (await call<{ cart: PricedCart }>("price the cart", "POST", "/carts", { items })).cart,
     checkout: async (signed) => (await call<{ order: ShopOrder }>("take the payment", "POST", "/checkout", signed)).order,
-    startLink: async (key) => (await call<{ link: { id: string; text: string; expires: string } }>("start linking the board", "POST", "/links", { key })).link,
-    signedLink: (id, signature, returnUrl) => call("take the board's signature of the link", "POST", `/links/${encodeURIComponent(id)}/signed`, { signature, ...(returnUrl ? { returnUrl } : {}) }),
+    startLink: async (key) => (await call<{ link: { id: string; text: string; expires: string } }>("start linking the key", "POST", "/links", { key })).link,
+    signedLink: (id, signature, returnUrl) => call("take the key's signature of the link", "POST", `/links/${encodeURIComponent(id)}/signed`, { signature, ...(returnUrl ? { returnUrl } : {}) }),
     link: async (id) => (await call<{ link: { id: string; status: string; paypal: string | null; error: string | null } }>("say how the link went", "GET", `/links/${encodeURIComponent(id)}`)).link,
-    board: (key) => call("say whether the board is linked", "POST", "/boards", { key }),
+    board: (key) => call("say whether the key is linked", "POST", "/boards", { key }),
     allowance: async (signed) => (await call<{ allowance: ShopAllowanceView }>("take the allowance", "POST", "/allowances", signed)).allowance,
     stopAllowance: async (id, signature) => (await call<{ allowance: ShopAllowanceView }>("stop the allowance", "POST", `/allowances/${encodeURIComponent(id)}/stop`, { signature })).allowance,
   };

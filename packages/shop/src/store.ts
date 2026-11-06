@@ -3,9 +3,9 @@ import { DatabaseSync } from "node:sqlite";
 import { cents, fingerprint, type PaymentItem } from "@purestrings/core";
 
 /**
- * What the shop keeps, in its own SQLite file (never PureStrings'): the carts it priced, the boards linked to a
+ * What the shop keeps, in its own SQLite file (never PureStrings'): the carts it priced, the keys linked to a
  * PayPal saved with it, the links under way, and each order with the signed text and signature it was paid
- * for, so every charge can show what the payer's board agreed to.
+ * for, so every charge can show what the payer's key agreed to.
  */
 
 export interface Cart {
@@ -17,9 +17,9 @@ export interface Cart {
   readonly createdAt: string;
 }
 
-/** A board linked to a PayPal saved with the shop: its carts are charged to that PayPal. */
+/** A key linked to a PayPal saved with the shop: its carts are charged to that PayPal. */
 export interface Customer {
-  /** The board's public key (raw P-256 point, base64url). */
+  /** The key's public key (raw P-256 point, base64url). */
   readonly key: string;
   readonly fingerprint: string;
   readonly vaultId: string;
@@ -27,7 +27,7 @@ export interface Customer {
   readonly linkedAt: string;
 }
 
-/** Linking a board: made, signed by the board, approved on PayPal's page, then linked (or cancelled). */
+/** Linking a key: made, signed by the key, approved on PayPal's page, then linked (or cancelled). */
 export interface Link {
   readonly id: string;
   readonly key: string;
@@ -55,7 +55,7 @@ export interface Order {
   readonly paypalOrderId: string | null;
   readonly captureId: string | null;
   readonly error: string | null;
-  /** The allowance it was paid under, when PureStrings paid on its own; null when the board signed it. */
+  /** The allowance it was paid under, when PureStrings paid on its own; null when the key signed it. */
   readonly allowance: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -130,7 +130,7 @@ export class ShopStore {
     return Number(result.changes) === 1;
   }
 
-  /** Links a board to a saved PayPal; linking the same board again points it at the new one. */
+  /** Links a key to a saved PayPal; linking the same key again points it at the new one. */
   saveCustomer(key: string, vaultId: string, email: string | null): Customer {
     this.db
       .prepare("INSERT INTO customers (key, fingerprint, vault_id, email, linked_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT (key) DO UPDATE SET vault_id = excluded.vault_id, email = excluded.email, linked_at = excluded.linked_at")
@@ -144,7 +144,7 @@ export class ShopStore {
     return { key: String(row.key), fingerprint: String(row.fingerprint), vaultId: String(row.vault_id), email: text(row.email), linkedAt: String(row.linked_at) };
   }
 
-  /** Unlinks a board: its signature pays for nothing here from then on. */
+  /** Unlinks a key: its signature pays for nothing here from then on. */
   removeCustomer(key: string): boolean {
     return Number(this.db.prepare("DELETE FROM customers WHERE key = ?").run(key).changes) > 0;
   }
@@ -184,7 +184,7 @@ export class ShopStore {
     return row ? toOrder(row) : null;
   }
 
-  /** Keeps an allowance a board signed: a new one is active; the same one again is the one kept. */
+  /** Keeps an allowance a key signed: a new one is active; the same one again is the one kept. */
   addAllowance(allowance: Omit<ShopAllowance, "status" | "createdAt">): ShopAllowance {
     this.db
       .prepare("INSERT INTO allowances (id, key, agent, text, signature, each_most, total_most, per, currency, expires, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?) ON CONFLICT (id) DO NOTHING")
@@ -227,10 +227,10 @@ export class ShopStore {
   }
 }
 
-/** An allowance a board signed here: PureStrings' key (`agent`) may pay for carts within its limits, charged to the board's PayPal. */
+/** An allowance a key signed here: PureStrings' key (`agent`) may pay for carts within its limits, charged to the key's PayPal. */
 export interface ShopAllowance {
   readonly id: string;
-  /** The board that signed it: its PayPal is the one charged. */
+  /** The key that signed it: its PayPal is the one charged. */
   readonly key: string;
   readonly agent: string;
   readonly text: string;

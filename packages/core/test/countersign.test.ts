@@ -32,7 +32,7 @@ const payment: Payment = {
   expires: "2026-10-29T10:15:00Z",
 };
 
-/** A board as the canvas's virtual one makes it: WebCrypto, with the raw public key it sends in hello. */
+/** A key as the one in your browser makes it: WebCrypto, with the raw public key it sends in hello. */
 async function webBoard() {
   const keys = await webcrypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign", "verify"]);
   const raw = Buffer.from(await webcrypto.subtle.exportKey("raw", keys.publicKey)).toString("base64url");
@@ -40,7 +40,7 @@ async function webBoard() {
   return { raw, signText };
 }
 
-/** A board as the ESP32 makes it: the raw point, and r and s side by side (mbedTLS gives them as two numbers). */
+/** A key as the ESP32 makes it: the raw point, and r and s side by side (mbedTLS gives them as two numbers). */
 function chipBoard() {
   const { privateKey, publicKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
   const jwk = publicKey.export({ format: "jwk" });
@@ -49,7 +49,7 @@ function chipBoard() {
   return { raw, signText };
 }
 
-describe("the text a board signs", () => {
+describe("the text a key signs", () => {
   it("has one way to be written, and reads back to the same payment", () => {
     const text = signableText(payment);
     assert.equal(
@@ -66,7 +66,7 @@ describe("the text a board signs", () => {
     const text = signableText(payment);
     assert.throws(() => parseSignable(text.replace('"v":1,', '"v":1, ')), /the one way/);
     assert.throws(() => parseSignable(JSON.stringify({ ...JSON.parse(text), note: "hi" })), /something extra: note/);
-    // A second "total" further on: JSON.parse would take the last one, the board might take the first.
+    // A second "total" further on: JSON.parse would take the last one, the key might take the first.
     assert.throws(() => parseSignable(text.replace('"currency":"USD"', '"total":"3.25","currency":"USD"')), /the one way|come to/);
     assert.throws(() => parseSignable(text.replace('"qty":2', '"qty":2.5')), /quantity from 1 to 99/);
     assert.throws(() => parseSignable(text.replace('"8.50"', '"8.5"')), /written like 12.00/);
@@ -91,18 +91,18 @@ describe("the text a board signs", () => {
     assert.throws(() => parseSignable(signableText({ ...payment, items: [{ name: " Mug", qty: 1, price: "32.50" }] })), /spaces/);
   });
 
-  it(`has between 1 and ${MAX_ITEMS} lines, and stays small enough for the board`, () => {
+  it(`has between 1 and ${MAX_ITEMS} lines, and stays small enough for the key`, () => {
     assert.throws(() => parseSignable(signableText({ ...payment, items: [], total: "0.00" })), /between 1 and/);
     const many = Array.from({ length: MAX_ITEMS + 1 }, (_, index) => ({ name: `Thing ${index}`, qty: 1, price: "1.00" }));
     assert.throws(() => parseSignable(signableText({ ...payment, items: many, total: `${MAX_ITEMS + 1}.00` })), /between 1 and/);
     assert.throws(() => parseSignable("x".repeat(2_000)), /at most/);
   });
 
-  it("links a board at a shop with a text of its own", () => {
+  it("links a key at a shop with a text of its own", () => {
     const link = { v: 1, kind: "link", id: "link_00112233445566778899aabb", shop: payment.shop, expires: "2026-10-29T10:15:00Z" } as const;
     const text = signableText(link);
     assert.deepEqual(parseSignable(text), link);
-    assert.equal(signableLine(link), "Link your PayPal at Bean & Leaf to this board");
+    assert.equal(signableLine(link), "Link your PayPal at Bean & Leaf to this key");
   });
 
   it("says what it asks in one line", () => {
@@ -119,7 +119,7 @@ describe("the text a board signs", () => {
   });
 });
 
-describe("a board's signature", () => {
+describe("a key's signature", () => {
   for (const [name, make] of [
     ["the virtual board's (WebCrypto)", webBoard],
     ["the ESP32's (raw r and s)", async () => chipBoard()],
@@ -161,11 +161,11 @@ describe("an allowance", () => {
   const agent = chipBoard().raw;
   const allowance: Allowance = { v: 1, kind: "allow", id: "allow_0123456789abcdef01234567", shop: payment.shop, for: "Groceries", agent, each: "20.00", total: "50.00", per: "week", currency: "USD", expires: "2026-12-04T10:00:00Z" };
 
-  it("is written one way, with PureStrings' key and the limits your board signs", () => {
+  it("is written one way, with PureStrings' key and the limits your key signs", () => {
     const text = signableText(allowance);
     assert.equal(text, `{"v":1,"kind":"allow","id":"allow_0123456789abcdef01234567","shop":{"id":"beanandleaf.example","name":"Bean & Leaf"},"for":"Groceries","agent":"${agent}","each":"20.00","total":"50.00","per":"week","currency":"USD","expires":"2026-12-04T10:00:00Z"}`);
     assert.deepEqual(parseSignable(text), allowance);
-    assert.ok(text.length < 400, "small enough for the board to show and sign");
+    assert.ok(text.length < 400, "small enough for the key to show and sign");
     assert.equal(signableLine(allowance), "Let PureStrings spend up to $20.00 a time and $50.00 a week at Bean & Leaf, for Groceries, until 2026-12-04");
   });
 
@@ -180,7 +180,7 @@ describe("an allowance", () => {
     assert.throws(() => parseSignable(text({ for: "Groceries\u202Eexcept" })), /can't show plainly/);
   });
 
-  it("is named by each payment made under it, which the board never sees", () => {
+  it("is named by each payment made under it, which the key never sees", () => {
     const under: Payment = { ...payment, allow: allowance.id };
     const text = signableText(under);
     assert.match(text, /^\{"v":1,"kind":"buy","id":"pay_0123456789abcdef01234567","allow":"allow_0123456789abcdef01234567","shop":/);
