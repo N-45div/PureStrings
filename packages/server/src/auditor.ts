@@ -8,7 +8,8 @@ import type { Model } from "./model.ts";
  * every capture however it was made, plus a look at each order PureStrings paid; without a webhook, only the latter.
  */
 
-const DAYS = 30;
+// PayPal lists at most 30 days of events at a time, counted to the second when it's asked: 29 stays inside that.
+const DAYS = 29;
 const WEBHOOK_HINT = "PayPal's record of every charge needs a webhook on the PayPal app (npm run paypal:webhook -- https://<your PureStrings>/shop/paypal/webhook); until then, only the orders PureStrings paid are checked.";
 
 export interface AuditView {
