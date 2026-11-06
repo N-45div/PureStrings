@@ -8,8 +8,14 @@ that tells you exactly what you're paying, from the very text it signs, and sign
 Small buys can go through on allowances your key signed once; the shop holds every payment to them. An AI
 auditor checks every PayPal charge against what was signed.
 
-Status: being put together. This repository starts from the payment parts of
-[Huddle](https://github.com/N-45div/huddle), by the same author.
+Status: being put together.
+
+## Where it came from
+
+I built the payment layer from Oct 28 to Nov 5, 2026 inside
+[huddle-paypal](https://github.com/N-45div/huddle-paypal), the PayPal branch of my
+[Huddle](https://github.com/N-45div/huddle). On Nov 6 I moved those pieces into this repository on their
+own. Their commits from those days are kept in this history, as they were.
 
 ## License
 
