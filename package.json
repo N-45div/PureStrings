@@ -12,10 +12,11 @@
   },
   "scripts": {
     "start": "node --no-warnings packages/server/src/main.ts",
+    "build": "npm run build -w @purestrings/web",
     "shop": "npm start -w @purestrings/shop",
     "paypal:webhook": "node --no-warnings packages/shop/src/webhook.ts",
     "test": "node --no-warnings --test \"packages/*/test/*.test.ts\"",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json && tsc --noEmit -p packages/web/tsconfig.json"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
