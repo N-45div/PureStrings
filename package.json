@@ -11,7 +11,7 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "start": "node --no-warnings packages/server/src/main.ts",
+    "start": "node --no-warnings --env-file-if-exists=.env packages/server/src/main.ts",
     "build": "npm run build -w @purestrings/web",
     "shop": "npm start -w @purestrings/shop",
     "paypal:webhook": "node --no-warnings packages/shop/src/webhook.ts",
