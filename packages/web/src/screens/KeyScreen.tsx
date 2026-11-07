@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { api, describeError } from "../api.ts";
 import { useResource } from "../hooks.ts";
 import { useKeyLink } from "../link.tsx";
 import { Hold } from "../parts/Hold.tsx";
 import { Receipt } from "../parts/Receipt.tsx";
 import { amount, readSignable } from "../signable.ts";
+import { usb, type UsbState } from "../usb.ts";
 
 /**
  * Your keys. The one in this browser, drawn as the button is: a small screen that shows exactly what it signs, and
@@ -94,6 +95,7 @@ export function KeyScreen() {
             </div>
           ) : null}
           <Buttons />
+          <Usb />
           <Linking />
         </div>
       </div>
@@ -163,8 +165,8 @@ function Buttons() {
       </div>
       {added ? (
         <div className="stack">
-          <div className="note">Put these in the button's config.h. The token is shown this once.</div>
-          <code className="code">{`#define PURESTRINGS_URL "${added.ws}"\n#define PURESTRINGS_TOKEN "${added.token}"`}</code>
+          <div className="note">Put these in the button's config.h (firmware/purestrings-button). The token is shown this once.</div>
+          <code className="code">{`#define PURESTRINGS_LINK_USB 1\n#define PURESTRINGS_TOKEN "${added.token}"\n// Wi-Fi only (PURESTRINGS_LINK_USB 0): this address as the button sees it, not localhost\n#define PURESTRINGS_URL "${added.ws}"`}</code>
         </div>
       ) : null}
       {error ? <div className="error">{error}</div> : null}
@@ -182,6 +184,61 @@ function Buttons() {
         ))}
       </ul>
       {devices.data?.length === 0 && !added ? <div className="empty">No buttons yet. The key in this browser works on its own.</div> : null}
+    </div>
+  );
+}
+
+const USB_STATE: Record<UsbState, { readonly pill: string; readonly says: string }> = {
+  closed: { pill: "plain", says: "Not connected" },
+  waiting: { pill: "wait", says: "Waiting for the button" },
+  connecting: { pill: "wait", says: "Connecting" },
+  live: { pill: "good", says: "Connected over USB" },
+};
+
+/** A button on this computer's USB: this page passes its messages on to PureStrings, so it needs no Wi-Fi. */
+function Usb() {
+  const link = useSyncExternalStore(usb.subscribe, usb.snapshot);
+  const state = USB_STATE[link.state];
+  return (
+    <div className="card">
+      <div className="card-head">
+        <div>
+          <h2>Button on USB</h2>
+          <p>Plug the button in and connect it here. Keep this page open while it's in use; it can be on any screen.</p>
+        </div>
+        <span className={`pill ${state.pill}`}>{state.says}</span>
+      </div>
+      {usb.supported() ? (
+        <div className="row">
+          {link.state === "closed" ? (
+            <button type="button" className="btn primary" onClick={() => void usb.choose()}>
+              Connect by USB
+            </button>
+          ) : (
+            <button type="button" className="btn" onClick={() => void usb.disconnect()}>
+              Disconnect
+            </button>
+          )}
+          <span className="muted small">Disconnect before you flash it.</span>
+        </div>
+      ) : (
+        <div className="note">Connecting by USB needs Chrome or Edge on a computer. Over Wi-Fi, the button connects on its own.</div>
+      )}
+      {link.error ? <div className="error" style={{ marginTop: 10 }}>{link.error}</div> : null}
+      {link.lines.length ? (
+        <details style={{ marginTop: 10 }}>
+          <summary className="muted small">What the button says ({link.lines.length} lines)</summary>
+          <code className="code" style={{ maxHeight: 220, overflow: "auto" }}>
+            {link.lines
+              .slice(-60)
+              .map((line) => (line.from === "link" ? `· ${line.text}` : line.text))
+              .join("\n")}
+          </code>
+          <button type="button" className="btn quiet" onClick={usb.clearLog}>
+            Clear
+          </button>
+        </details>
+      ) : null}
     </div>
   );
 }
