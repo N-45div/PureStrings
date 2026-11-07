@@ -177,6 +177,19 @@ function Buttons() {
               <b>{device.name}</b>
               <div className="muted small mono">{device.signer ? `key ${device.signer.fingerprint}` : "hasn't connected yet"}</div>
             </div>
+            {device.signer ? (
+              <button
+                type="button"
+                className="btn quiet"
+                title="The button signs the link; then you say yes on PayPal's page, below"
+                onClick={() => {
+                  setError(null);
+                  void api.link(device.signer!.key).catch((caught: unknown) => setError(describeError(caught)));
+                }}
+              >
+                Link at the shop
+              </button>
+            ) : null}
             <button type="button" className="btn quiet danger" onClick={() => void api.removeDevice(device.id).then(devices.reload)}>
               Remove
             </button>
