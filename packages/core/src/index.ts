@@ -1,7 +1,7 @@
 export {
   type Allowance,
   amountText,
-  boardKey,
+  p256Key,
   expired,
   fingerprint,
   keyText,

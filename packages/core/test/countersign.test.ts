@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import {
   type Allowance,
   amountText,
-  boardKey,
+  p256Key,
   expired,
   fingerprint,
   MAX_ITEMS,
@@ -33,7 +33,7 @@ const payment: Payment = {
 };
 
 /** A key as the one in your browser makes it: WebCrypto, with the raw public key it sends in hello. */
-async function webBoard() {
+async function webKey() {
   const keys = await webcrypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign", "verify"]);
   const raw = Buffer.from(await webcrypto.subtle.exportKey("raw", keys.publicKey)).toString("base64url");
   const signText = async (text: string) => Buffer.from(await webcrypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, keys.privateKey, new TextEncoder().encode(text))).toString("base64url");
@@ -41,7 +41,7 @@ async function webBoard() {
 }
 
 /** A key as the ESP32 makes it: the raw point, and r and s side by side (mbedTLS gives them as two numbers). */
-function chipBoard() {
+function chipKey() {
   const { privateKey, publicKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
   const jwk = publicKey.export({ format: "jwk" });
   const raw = Buffer.concat([Buffer.from([4]), Buffer.from(jwk.x!, "base64url"), Buffer.from(jwk.y!, "base64url")]).toString("base64url");
@@ -121,44 +121,44 @@ describe("the text a key signs", () => {
 
 describe("a key's signature", () => {
   for (const [name, make] of [
-    ["the virtual board's (WebCrypto)", webBoard],
-    ["the ESP32's (raw r and s)", async () => chipBoard()],
+    ["the key in a browser's (WebCrypto)", webKey],
+    ["the ESP32's (raw r and s)", async () => chipKey()],
   ] as const) {
     it(`is checked against exactly the text it signed: ${name}`, async () => {
-      const board = await make();
+      const key = await make();
       const text = signableText(payment);
-      const signature = await board.signText(text);
-      assert.equal(signedBy(text, signature, board.raw), true);
+      const signature = await key.signText(text);
+      assert.equal(signedBy(text, signature, key.raw), true);
       // One cent more, or another shop, and it's not what was signed.
-      assert.equal(signedBy(signableText({ ...payment, total: "32.51", items: [...payment.items.slice(0, 1), { name: "Paper filters", qty: 1, price: "8.51" }] }), signature, board.raw), false);
-      assert.equal(signedBy(signableText({ ...payment, shop: { id: "bean-and-leaf.example", name: "Bean & Leaf" } }), signature, board.raw), false);
-      // Another board's key doesn't vouch for it.
-      assert.equal(signedBy(text, signature, chipBoard().raw), false);
+      assert.equal(signedBy(signableText({ ...payment, total: "32.51", items: [...payment.items.slice(0, 1), { name: "Paper filters", qty: 1, price: "8.51" }] }), signature, key.raw), false);
+      assert.equal(signedBy(signableText({ ...payment, shop: { id: "bean-and-leaf.example", name: "Bean & Leaf" } }), signature, key.raw), false);
+      // Another key doesn't vouch for it.
+      assert.equal(signedBy(text, signature, chipKey().raw), false);
     });
   }
 
   it("is false for anything that isn't one, never an error", () => {
-    const board = chipBoard();
+    const key = chipKey();
     const text = signableText(payment);
-    assert.equal(signedBy(text, "", board.raw), false);
-    assert.equal(signedBy(text, "a".repeat(86), board.raw), false);
-    assert.equal(signedBy(text, board.signText(text), "not-a-key"), false);
-    assert.equal(signedBy(text, sign("sha256", Buffer.from(text), generateKeyPairSync("ec", { namedCurve: "P-256" }).privateKey).toString("base64url"), board.raw), false, "a DER signature isn't taken");
+    assert.equal(signedBy(text, "", key.raw), false);
+    assert.equal(signedBy(text, "a".repeat(86), key.raw), false);
+    assert.equal(signedBy(text, key.signText(text), "not-a-key"), false);
+    assert.equal(signedBy(text, sign("sha256", Buffer.from(text), generateKeyPairSync("ec", { namedCurve: "P-256" }).privateKey).toString("base64url"), key.raw), false, "a DER signature isn't taken");
   });
 
   it("comes from a key that's a real P-256 point, with a fingerprint both screens can show", () => {
-    const board = chipBoard();
-    assert.equal(boardKey(board.raw).asymmetricKeyType, "ec");
-    assert.match(fingerprint(board.raw), /^[0-9A-F]{4} [0-9A-F]{4} [0-9A-F]{4} [0-9A-F]{4}$/);
-    assert.equal(fingerprint(board.raw), fingerprint(board.raw));
-    assert.notEqual(fingerprint(board.raw), fingerprint(chipBoard().raw));
-    assert.throws(() => boardKey(Buffer.alloc(65, 4).toString("base64url")), /isn't a point on P-256/);
-    assert.throws(() => boardKey(Buffer.alloc(33, 2).toString("base64url")), /uncompressed/);
+    const key = chipKey();
+    assert.equal(p256Key(key.raw).asymmetricKeyType, "ec");
+    assert.match(fingerprint(key.raw), /^[0-9A-F]{4} [0-9A-F]{4} [0-9A-F]{4} [0-9A-F]{4}$/);
+    assert.equal(fingerprint(key.raw), fingerprint(key.raw));
+    assert.notEqual(fingerprint(key.raw), fingerprint(chipKey().raw));
+    assert.throws(() => p256Key(Buffer.alloc(65, 4).toString("base64url")), /isn't a point on P-256/);
+    assert.throws(() => p256Key(Buffer.alloc(33, 2).toString("base64url")), /uncompressed/);
   });
 });
 
 describe("an allowance", () => {
-  const agent = chipBoard().raw;
+  const agent = chipKey().raw;
   const allowance: Allowance = { v: 1, kind: "allow", id: "allow_0123456789abcdef01234567", shop: payment.shop, for: "Groceries", agent, each: "20.00", total: "50.00", per: "week", currency: "USD", expires: "2026-12-04T10:00:00Z" };
 
   it("is written one way, with PureStrings' key and the limits your key signs", () => {

@@ -27,9 +27,9 @@ function signedPayment(store: Store, signer: { key: string; sign: (text: string)
 describe("the auditor", () => {
   it("passes a charge your key signed, for exactly that amount", () => {
     const store = new Store();
-    const board = keyPair();
-    store.addSigner({ key: board.key, name: "Desk button" });
-    signedPayment(store, board, payment("pay_000000000001", "14.00"));
+    const yours = keyPair();
+    store.addSigner({ key: yours.key, name: "Desk button" });
+    signedPayment(store, yours, payment("pay_000000000001", "14.00"));
     const found = auditCharge(store, charge("pay_000000000001"));
     assert.equal(found.verdict, "signed");
     assert.match(found.why, /^Signed by Desk button \([0-9A-F ]{19}\), for exactly this amount\.$/);
@@ -38,9 +38,9 @@ describe("the auditor", () => {
 
   it("flags a charge no key signed, one for another amount, and one whose signature doesn't check out", () => {
     const store = new Store();
-    const board = keyPair();
-    store.addSigner({ key: board.key, name: "Desk button" });
-    signedPayment(store, board, payment("pay_000000000002", "14.00"));
+    const yours = keyPair();
+    store.addSigner({ key: yours.key, name: "Desk button" });
+    signedPayment(store, yours, payment("pay_000000000002", "14.00"));
     const rogue = auditCharge(store, charge("rogue-0001", "99.00"));
     assert.equal(rogue.verdict, "unsigned");
     assert.equal(rogue.why, "PayPal took $99.00 (capture 3C679366HH908993F), but no key of yours signed a payment by the id it was charged with (rogue-0001).");
@@ -56,19 +56,19 @@ describe("the auditor", () => {
     // A signature that's someone else's.
     const forged = payment("pay_000000000004", "14.00");
     store.addSignRequest({ id: forged.id, kind: "buy", text: signableText(forged), shop: "http://localhost:7700/shop", expires: forged.expires });
-    store.markSigned(forged.id, keyPair().sign(signableText(forged)), board.key);
+    store.markSigned(forged.id, keyPair().sign(signableText(forged)), yours.key);
     assert.match(auditCharge(store, charge(forged.id)).why, /doesn't check out/);
   });
 
   it("passes a charge PureStrings signed under an allowance your key signed, and flags one under an allowance it didn't", () => {
     const store = new Store();
-    const board = keyPair();
+    const yours = keyPair();
     const agent = keyPair();
-    store.addSigner({ key: board.key, name: "Desk button" });
+    store.addSigner({ key: yours.key, name: "Desk button" });
     const allowance: Allowance = { v: 1, kind: "allow", id: "allow_000000000001", shop: SHOP, for: "Groceries", agent: agent.key, each: "20.00", total: "50.00", per: "week", currency: "USD", expires: "2026-12-06T10:00:00Z" };
     const allowText = signableText(allowance);
-    store.addSignRequest({ id: allowance.id, kind: "allow", text: allowText, shop: "http://localhost:7700/shop", expires: allowance.expires, result: { key: board.key } });
-    store.markSigned(allowance.id, board.sign(allowText), board.key);
+    store.addSignRequest({ id: allowance.id, kind: "allow", text: allowText, shop: "http://localhost:7700/shop", expires: allowance.expires, result: { key: yours.key } });
+    store.markSigned(allowance.id, yours.sign(allowText), yours.key);
     store.moveSignRequest(allowance.id, "signed", { status: "active" });
     signedPayment(store, agent, payment("pay_000000000005", "14.00", allowance.id));
     const under = auditCharge(store, charge("pay_000000000005"));

@@ -102,16 +102,16 @@ export function auditCharge(store: Store, charge: PayPalCharge): Finding {
   }
   if (payment.allow) {
     const given = store.signRequest(payment.allow);
-    const board = (given?.result as { key?: unknown } | null)?.key;
+    const yours = (given?.result as { key?: unknown } | null)?.key;
     const allowance = given?.kind === "allow" ? (parseSignable(given.text) as Allowance) : null;
-    if (!given || !allowance || !checks(given) || given.key !== board || allowance.agent !== request.key) {
+    if (!given || !allowance || !checks(given) || given.key !== yours || allowance.agent !== request.key) {
       return { charge, verdict: "unsigned", why: `${took} under an allowance (${payment.allow}) that no key of yours signed for PureStrings' key.`, signId: request.id };
     }
     if ((cents(payment.total) ?? 0) > (cents(allowance.each) ?? 0)) return { charge, verdict: "mismatch", why: `${took} under the ${allowance.for} allowance, more than its ${money(allowance.each, allowance.currency)} a time.`, signId: request.id };
     return { charge, verdict: "allowed", why: `PureStrings paid it under your ${allowance.for} allowance, which your key signed.`, signId: request.id };
   }
-  const board = store.signer(request.key);
-  return { charge, verdict: "signed", why: `Signed by ${board ? `${board.name} (${board.fingerprint})` : "a key of yours"}, for exactly this amount.`, signId: request.id };
+  const signer = store.signer(request.key);
+  return { charge, verdict: "signed", why: `Signed by ${signer ? `${signer.name} (${signer.fingerprint})` : "a key of yours"}, for exactly this amount.`, signId: request.id };
 }
 
 /** Every charge checked, newest first; a charge seen twice (in the events and by its order) counts once. */

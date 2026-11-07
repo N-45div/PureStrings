@@ -51,7 +51,7 @@ export function paymentRoutes(app: Hono, context: ShopContext): void {
     currency: allowance.currency,
     expires: allowance.expires,
     spent: decimal(store.spentUnder(allowance.id, windowStart(allowance))),
-    board: fingerprint(allowance.key),
+    fingerprint: fingerprint(allowance.key),
     agent: fingerprint(allowance.agent),
   });
 

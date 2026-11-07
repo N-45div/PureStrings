@@ -232,7 +232,7 @@ export function expired(signable: Pick<Signable, "expires">, now = Date.now()): 
 }
 
 /** A key's public key: the uncompressed P-256 point (65 bytes, starting 0x04), base64url, as the key sends it. */
-export function boardKey(raw: string): KeyObject {
+export function p256Key(raw: string): KeyObject {
   if (typeof raw !== "string" || !/^[A-Za-z0-9_-]+$/.test(raw)) throw new Error("A key should be base64url.");
   const bytes = Buffer.from(raw, "base64url");
   if (bytes.length !== 65 || bytes[0] !== 4) throw new Error("A key should be a P-256 public key, uncompressed (65 bytes).");
@@ -245,7 +245,7 @@ export function boardKey(raw: string): KeyObject {
 
 /** A key written the one way: base64url has spare bits at its end, so one key could be written a few ways. */
 export function keyText(raw: string): string {
-  boardKey(raw);
+  p256Key(raw);
   return Buffer.from(raw, "base64url").toString("base64url");
 }
 
@@ -266,7 +266,7 @@ export function signedBy(text: string, signature: string, raw: string): boolean 
   if (typeof signature !== "string" || !/^[A-Za-z0-9_-]{86}$/.test(signature)) return false;
   let key: KeyObject;
   try {
-    key = boardKey(raw);
+    key = p256Key(raw);
   } catch {
     return false;
   }

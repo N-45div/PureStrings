@@ -16,7 +16,7 @@ export const orderView = (order: Order) => ({
   id: order.id,
   payment: order.paymentId,
   cart: order.cartId,
-  board: order.fingerprint,
+  fingerprint: order.fingerprint,
   status: order.status,
   total: order.total,
   currency: order.currency,

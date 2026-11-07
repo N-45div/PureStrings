@@ -1,6 +1,6 @@
 {
   "name": "Bean & Leaf",
-  "about": "Coffee, tea and the things you brew them with. A demo shop in PayPal's sandbox: it sells to your assistants, and charges your PayPal only for carts your board signed.",
+  "about": "Coffee, tea and the things you brew them with. A demo shop in PayPal's sandbox: it sells to your assistants, and charges your PayPal only for carts your key signed.",
   "currency": "USD",
   "products": [
     { "sku": "beans-house", "name": "House blend beans, 1 lb", "price": "12.00", "tags": ["coffee", "beans", "whole bean", "medium roast", "everyday"] },

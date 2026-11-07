@@ -31,10 +31,10 @@ function setUp(withPayPal = false) {
     const response = await app.request(path, { method, headers: { "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     return { status: response.status, body: (await response.json()) as Record<string, any> };
   };
-  const board = keyPair();
+  const yours = keyPair();
   const agent = keyPair();
   // The key linked here earlier (with the sandbox payer's saved PayPal, when there's one to charge).
-  store.saveCustomer(board.key, vaultId ?? "VAULT-NOT-CHARGED", "buyer@example.com");
+  store.saveCustomer(yours.key, vaultId ?? "VAULT-NOT-CHARGED", "buyer@example.com");
   const allowance = (change: Partial<Allowance> = {}): Allowance => ({
     v: 1,
     kind: "allow",
@@ -49,7 +49,7 @@ function setUp(withPayPal = false) {
     expires: signableTime(Date.now() + 7 * 86_400_000),
     ...change,
   });
-  const give = async (allowed: Allowance, signer = board) => {
+  const give = async (allowed: Allowance, signer = yours) => {
     const text = signableText(allowed);
     return call("POST", "/allowances", { text, signature: signer.sign(text), key: signer.key });
   };
@@ -60,7 +60,7 @@ function setUp(withPayPal = false) {
     const text = signableText(paying);
     return call("POST", "/checkout", { text, signature: signer.sign(text), key: signer.key });
   };
-  return { store, call, board, agent, allowance, give, payment };
+  return { store, call, yours, agent, allowance, give, payment };
 }
 
 describe("an allowance at the shop", () => {
@@ -79,10 +79,10 @@ describe("an allowance at the shop", () => {
   });
 
   it("pays only with the key it names, one payment up to its each, all of them up to its total", async () => {
-    const { store, give, allowance, payment, board, call } = setUp();
+    const { store, give, allowance, payment, yours, call } = setUp();
     const allowed = allowance({ id: "allow_000000000002" });
     await give(allowed);
-    assert.match((await payment(allowed.id, [{ sku: "beans-house", qty: 1 }], board)).body.error, /Only the key the allowance names/, "even the key pays under it only through PureStrings' key");
+    assert.match((await payment(allowed.id, [{ sku: "beans-house", qty: 1 }], yours)).body.error, /Only the key the allowance names/, "even the key pays under it only through PureStrings' key");
     assert.match((await payment(allowed.id, [{ sku: "beans-house", qty: 1 }], keyPair())).body.error, /Only the key the allowance names/);
     const each = await payment(allowed.id, [{ sku: "beans-house", qty: 2 }]);
     assert.equal(each.status, 403);
@@ -99,7 +99,7 @@ describe("an allowance at the shop", () => {
   });
 
   it("stops at once, signed by the key or the key it names, and nothing more is paid under it", async () => {
-    const { give, allowance, payment, call, agent, board } = setUp();
+    const { give, allowance, payment, call, agent, yours } = setUp();
     const allowed = allowance({ id: "allow_000000000003" });
     await give(allowed);
     assert.equal((await call("POST", `/allowances/${allowed.id}/stop`, { signature: keyPair().sign(`stop ${allowed.id}`) })).status, 401);
@@ -108,7 +108,7 @@ describe("an allowance at the shop", () => {
     assert.match((await payment(allowed.id, [{ sku: "filters", qty: 1 }])).body.error, /^That allowance was stopped\. Nothing was charged/);
     const other = allowance({ id: "allow_000000000004" });
     await give(other);
-    assert.equal((await call("POST", `/allowances/${other.id}/stop`, { signature: board.sign(`stop ${other.id}`) })).body.allowance.status, "stopped");
+    assert.equal((await call("POST", `/allowances/${other.id}/stop`, { signature: yours.sign(`stop ${other.id}`) })).body.allowance.status, "stopped");
   });
 
   it("charges the key's PayPal for a payment PureStrings' key signs under it", { skip: !paypal && "set PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET and PAYPAL_SANDBOX_VAULT_ID to charge PayPal's sandbox" }, async () => {

@@ -233,7 +233,7 @@ export function shopApp(options: ShopOptions): Hono {
   });
 
   /** Whether a key is linked here, by its key: so PureStrings can say so before it asks the key to sign. */
-  app.post("/boards", async (c) => {
+  app.post("/linked", async (c) => {
     const { key } = await body(c);
     let customer = null;
     try {
