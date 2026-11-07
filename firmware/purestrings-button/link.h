@@ -99,6 +99,7 @@ void onMessage(const char *payload, size_t length) {
   } else if (type == "signed") {
     // PureStrings took the signature; the shop's answer comes as "payment".
     rememberShop(signShopId);
+    reply("Signed", "Waiting for the shop...", true);
   } else if (type == "answered") {
     reply("Refused", "Nothing was paid.", false);
   } else if (type == "payment") {

@@ -134,6 +134,11 @@ void drawSign() {
     }
     if (signPages() > 1) small(y, "lines " + String(first + 1) + "-" + String(min(first + SIGN_LINES, signLines.size())) + " of " + String(signLines.size()), MUTED);
   }
+  // Why the last hold didn't sign (PureStrings refused it, or this key can't), over the lines for a while.
+  if (replyUntil && millis() < replyUntil) {
+    tft->fillRect(0, 116, 128, 24, BG);
+    small(118, ascii(replyText), WARN, 2);
+  }
   if (!signSeen) small(141, "more lines... tap: no", INK);
   else small(141, signMore > 0 ? "hold 2s: sign  +" + String(signMore) : "hold 2s: sign tap: no", INK);
   tft->fillRoundRect(8, 153, 112, 5, 2, TRACK);
