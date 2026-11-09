@@ -101,7 +101,7 @@ function Frame({ info }: { readonly info: Info }) {
           <span className={`pill ${stream === "live" ? "good" : stream === "offline" ? "bad" : ""}`}>{stream === "live" ? "Live" : stream === "offline" ? "Offline" : "Connecting"}</span>
           <span className={`pill ${link.connected && link.signer?.ok ? "good" : "wait"}`}>{link.connected && link.signer?.ok ? "Key connected" : "Key not connected"}</span>
           {info.paypal ? <span className="pill info">PayPal {info.paypal}</span> : <span className="pill">No PayPal</span>}
-          {info.model ? <span className="pill plain" title={info.model}>Nemotron</span> : null}
+          {info.model ? <span className="pill plain" title="The model that writes allowances and disputes">{info.model}</span> : null}
         </div>
       </nav>
       <main className="main">{pages[screen]}</main>

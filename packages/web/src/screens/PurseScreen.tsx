@@ -190,7 +190,7 @@ function Allowances({ info }: { readonly info: Info | null }) {
         })}
         {!shown.length ? <div className="empty">No allowances: every payment asks your key.</div> : null}
         <div className="field">
-          {info?.model ? "Say it, and Nemotron writes the limits; your key shows them before you sign" : "A new allowance (set NEBIUS_API_KEY to say it in words)"}
+          {info?.model ? `Say it, and ${info.model} writes the limits; your key shows them before you sign` : "A new allowance (set MODEL_URL, MODEL and MODEL_KEY, or NEBIUS_API_KEY, to say it in words)"}
           <div className="row" style={{ flexWrap: "nowrap" }}>
             {info?.model ? <input className="input" value={said} onChange={(event) => setSaid(event.target.value)} onKeyDown={(event) => event.key === "Enter" && void ask()} /> : null}
             <button type="button" className="btn primary" disabled={busy} onClick={() => void ask()}>
