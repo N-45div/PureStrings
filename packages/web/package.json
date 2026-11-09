@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@purestrings/core": "*",
     "ag-grid-community": "36.3.0",
     "ag-grid-react": "36.3.0",
     "react": "19.3.1",

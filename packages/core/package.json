@@ -6,6 +6,7 @@
   "license": "AGPL-3.0-only",
   "description": "The payments PureStrings is made of: the one text your key signs, PayPal, allowances and the auditor.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./cable": "./src/cable.ts"
   }
 }
