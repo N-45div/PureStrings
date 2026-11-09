@@ -84,10 +84,50 @@ function toButtonText(text: string): void {
 
 const toButton = (message: object): void => toButtonText(JSON.stringify(message));
 
+// The button's voice, from PureStrings: 16-bit PCM at 24 kHz (48 bytes a millisecond). It goes on the cable at
+// speaking pace, at most a second ahead, so the button's USB buffer never has to hold more than that.
+const SOUND_PER_MS = 48;
+const SOUND_LEAD = 48_000;
+let sound: Uint8Array[] = [];
+let soundSince = 0;
+let soundSent = 0;
+let soundTimer: ReturnType<typeof setTimeout> | undefined;
+
+function feedSound(): void {
+  clearTimeout(soundTimer);
+  soundTimer = undefined;
+  const out = writer;
+  if (!out) {
+    sound = [];
+    return;
+  }
+  const now = Date.now();
+  // Once everything sent has had time to play, the next words start a fresh clock.
+  if (soundSent <= (now - soundSince) * SOUND_PER_MS) {
+    soundSince = now;
+    soundSent = 0;
+  }
+  let room = (now - soundSince) * SOUND_PER_MS + SOUND_LEAD - soundSent;
+  while (sound.length && (sound[0]?.length ?? 0) <= room) {
+    const chunk = sound.shift()!;
+    const frame = encodeFrame(chunk, "B");
+    writing = writing.then(() => out.write(frame)).catch(() => undefined);
+    soundSent += chunk.length;
+    room -= chunk.length;
+  }
+  if (sound.length) soundTimer = setTimeout(feedSound, 50);
+}
+
+function toButtonSound(bytes: Uint8Array): void {
+  for (let at = 0; at < bytes.length; at += 4_800) sound.push(bytes.slice(at, at + 4_800));
+  feedSound();
+}
+
 function openSocket(token: string): void {
   update({ state: "connecting" });
   note("The button said who it is. Connecting it to PureStrings...");
   const opened = new WebSocket(socketUrl(token));
+  opened.binaryType = "arraybuffer";
   socket = opened;
   let live = false;
   opened.onopen = () => {
@@ -97,7 +137,11 @@ function openSocket(token: string): void {
     toButton({ type: "usb-open" });
   };
   opened.onmessage = (message) => {
-    if (typeof message.data === "string") toButtonText(message.data);
+    if (typeof message.data === "string") {
+      // Something new to sign: whatever the button was still saying is stale.
+      if (message.data.startsWith('{"type":"sign"')) sound = [];
+      toButtonText(message.data);
+    } else if (message.data instanceof ArrayBuffer) toButtonSound(new Uint8Array(message.data));
   };
   opened.onclose = () => {
     if (socket !== opened) return;
