@@ -28,3 +28,4 @@ export { type ActiveAllowance, activeAllowances, type AgentKey, agentKey, allowa
 export { audit, auditCharge, chargesFromEvents, type Finding, flagged, type PayPalCharge, type Verdict } from "./audit.ts";
 export { type Agent, type Change, type Device, type Signer, type SignRequest, Store } from "./store.ts";
 export { type LinkResult, PAY_MINUTES, Purse, type PurseOptions } from "./purse.ts";
+export { amountWords, spokenText } from "./spoken.ts";
