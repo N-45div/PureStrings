@@ -1,8 +1,12 @@
-import { amountText, type Change, fingerprint, keyText, parseSignable, type Purse, type Signer, type Store } from "@purestrings/core";
+import { amountText, type Change, fingerprint, keyText, parseSignable, type Purse, type Signer, spokenText, type Store } from "@purestrings/core";
 import type { Hono } from "hono";
 import type { UpgradeWebSocket, WSContext } from "hono/ws";
 import { bearerOf, same } from "./auth.ts";
 import { paymentLine } from "./shops.ts";
+import type { Voice } from "./voice.ts";
+
+/** How much sound goes in one binary message: 0.2 s at 24 kHz, 16-bit. */
+const AUDIO_CHUNK = 9_600;
 
 /**
  * Your keys' link to PureStrings: the PureStrings button, or the virtual key in your browser, connects here over a
@@ -30,7 +34,7 @@ export type Screen =
   | { readonly type: "idle"; readonly spentTodayUsd: number; readonly nextRun: null; readonly flows: readonly [] };
 
 export type ToKey =
-  | { readonly type: "hello"; readonly name: string; readonly version: string; readonly speech: false }
+  | { readonly type: "hello"; readonly name: string; readonly version: string; readonly speech: boolean }
   | Screen
   | { readonly type: "signer"; readonly ok: boolean; readonly fingerprint: string; readonly name: string; readonly problem?: string }
   | { readonly type: "signed"; readonly id: string }
@@ -48,11 +52,13 @@ export class KeyHub {
   private readonly store: Store;
   private readonly purse: Purse;
   private readonly now: () => number;
+  private readonly voice: Voice | null;
 
-  constructor(store: Store, purse: Purse, options: { readonly now?: () => number } = {}) {
+  constructor(store: Store, purse: Purse, options: { readonly now?: () => number; readonly voice?: Voice | null } = {}) {
     this.store = store;
     this.purse = purse;
     this.now = options.now ?? Date.now;
+    this.voice = options.voice ?? null;
   }
 
   /** What every key shows now: the oldest thing waiting for a signature, or how much was paid today. */
@@ -78,7 +84,7 @@ export class KeyHub {
    * A key connected: it's sent the screen now and whenever it changes, and told how what it signed went. Returns
    * what to call with each message it sends, and when it goes.
    */
-  connect(send: (message: ToKey) => void, hello: { readonly name: string; readonly version: string; readonly deviceId?: string | null }) {
+  connect(send: (message: ToKey) => void, hello: { readonly name: string; readonly version: string; readonly deviceId?: string | null }, sendAudio?: (pcm: Uint8Array) => void) {
     let last = "";
     /** The key this one signs with, once it's said it and PureStrings holds it; why not, when it's refused. */
     let signer: Signer | null = null;
@@ -87,12 +93,43 @@ export class KeyHub {
     const since = new Date(this.now()).toISOString();
     const told = new Set<string>();
 
+    // A button with a speaker hears what it shows, in the words the key in a browser says (the browser has its own voice).
+    const voice = this.voice && sendAudio && hello.deviceId ? this.voice : null;
+    let saying = "";
+    let gone = false;
+    const say = (text: string, forId: string) => {
+      if (!voice || !sendAudio) return;
+      void (async () => {
+        try {
+          for await (const pcm of voice.speak(text)) {
+            // Stop once the key has gone, or its screen has moved on from what this was about.
+            if (gone || (forId && saying !== forId)) return;
+            for (let at = 0; at < pcm.length; at += AUDIO_CHUNK) sendAudio(pcm.subarray(at, at + AUDIO_CHUNK));
+          }
+        } catch (error) {
+          console.error("[purestrings] voice:", failure(error));
+        }
+      })();
+    };
+    /** Whether this key has signed for this shop before: one it hasn't gets a warning, as on its screen. */
+    const knows = (shopId: string) => {
+      const mine = signer;
+      if (!mine) return false;
+      return this.store.signRequests(200).some((request) => request.key === mine.key && (request.status === "paid" || request.status === "linked" || request.status === "active") && parseSignable(request.text).shop.id === shopId);
+    };
+
     const show = () => {
       const screen = this.screen();
       const shown = JSON.stringify(screen);
       if (shown === last) return;
       last = shown;
       send(screen);
+      if (screen.type !== "sign") saying = "";
+      else if (screen.id !== saying) {
+        saying = screen.id;
+        const signable = parseSignable(screen.text);
+        say(spokenText(signable, !knows(signable.shop.id)), screen.id);
+      }
     };
 
     /** How each thing this key signed went, once the shop has answered; and payments made under an allowance meanwhile. */
@@ -111,6 +148,7 @@ export class KeyHub {
         if (status === "linking") line = `Signed. To finish, say yes on PayPal's page in PureStrings, and ${signed.shop.name} is linked.`;
         if (status === "set" && signed.kind === "allow") line = `Allowance set: up to ${amountText(signed.each, signed.currency)} a time and ${amountText(signed.total, signed.currency)} a ${signed.per} at ${signed.shop.name}.`;
         send({ type: "payment", id, status, line });
+        say(line, "");
       }
       for (const request of this.store.signRequests(20, "buy")) {
         if (request.status !== "paid" || (request.signedAt ?? "") < since || told.has(request.id)) continue;
@@ -157,7 +195,7 @@ export class KeyHub {
       show();
     };
 
-    send({ type: "hello", name: hello.name, version: hello.version, speech: false });
+    send({ type: "hello", name: hello.name, version: hello.version, speech: voice !== null });
     show();
     this.store.events.on("change", onChange);
     // A waiting payment expires, and a new day starts, without a change: look again each minute.
@@ -204,6 +242,7 @@ export class KeyHub {
         send({ type: "error", message: `PureStrings doesn't know "${String(message?.type ?? "")}" with what was sent.` });
       },
       close: () => {
+        gone = true;
         clearInterval(tick);
         this.store.events.off("change", onChange);
       },
@@ -231,7 +270,7 @@ export function keyRoutes(app: Hono, options: { readonly store: Store; readonly 
       let session: ReturnType<KeyHub["connect"]> | null = null;
       return {
         onOpen: (_event, socket: WSContext) => {
-          session = options.hub.connect((message) => socket.send(JSON.stringify(message)), { name, version: options.version, deviceId });
+          session = options.hub.connect((message) => socket.send(JSON.stringify(message)), { name, version: options.version, deviceId }, (pcm) => socket.send(new Uint8Array(pcm)));
         },
         onMessage: (event) => {
           if (typeof event.data === "string") session?.receive(event.data);

@@ -9,6 +9,7 @@ import { createApp } from "./app.ts";
 import { Auditor, disputeWriter } from "./auditor.ts";
 import { KeyHub, keyRoutes } from "./keys.ts";
 import { modelFromEnv } from "./model.ts";
+import { voiceFromEnv } from "./voice.ts";
 import { webApp } from "./static.ts";
 
 /**
@@ -24,6 +25,7 @@ import { webApp } from "./static.ts";
  *   NEBIUS_API_KEY      Nemotron on Token Factory writes allowances from your words and drafts disputes
  *                       (or MODEL_URL and MODEL for any OpenAI-style chat API)
  *   AUDIT_MINUTES       how often the auditor checks PayPal's record (default 10)
+ *   OPENAI_API_KEY      the button speaks what it's asked to sign, and how it went (VOICE=off for quiet)
  */
 
 const env = (name: string) => process.env[name]?.trim() || undefined;
@@ -66,7 +68,9 @@ if (shop) {
   app.route("/shop", shop.app);
 }
 const websockets = createNodeWebSocket({ app });
-keyRoutes(app, { store, hub: new KeyHub(store, purse), version, ...(token ? { token } : {}), upgradeWebSocket: websockets.upgradeWebSocket });
+const voice = voiceFromEnv(process.env);
+const hub = new KeyHub(store, purse, { voice });
+keyRoutes(app, { store, hub, version, ...(token ? { token } : {}), upgradeWebSocket: websockets.upgradeWebSocket });
 const web = env("PURESTRINGS_WEB") ?? fileURLToPath(new URL("../../web/dist", import.meta.url));
 const built = existsSync(join(web, "index.html"));
 app.use("*", webApp(web));
@@ -86,6 +90,7 @@ const server = serve({ fetch: app.fetch, hostname: host, port }, () => {
   if (shop) console.log(`  Demo shop: ${shop.name} at ${shopUrl}, ${shop.paypal ? `on PayPal's ${shop.paypal}` : "without PayPal (set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET to link and charge)"}`);
   console.log(`  Auditor: ${auditor ? `reads PayPal's record every ${auditMinutes} minutes${model ? `; ${model.name} drafts disputes` : ""}` : "off (set PayPal's keys)"}`);
   console.log(`  Allowances from your words: ${model ? model.name : "off (set NEBIUS_API_KEY, or MODEL_URL and MODEL)"}`);
+  console.log(`  The button's voice: ${voice ? voice.name : "off (set OPENAI_API_KEY, or MODEL_URL to OpenAI's with MODEL_KEY)"}`);
   if (!built) console.log(`  The web app isn't built (no ${join(web, "index.html")}): run npm run build.`);
 });
 
