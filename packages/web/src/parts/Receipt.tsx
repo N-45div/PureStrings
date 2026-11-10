@@ -57,7 +57,10 @@ export function Receipt({ text, fresh = false, compact = false }: { readonly tex
         ) : (
           <>
             <div className="lines">
-              <div>PureStrings may pay here on its own, for {read.for}:</div>
+              <div>
+                PureStrings may pay here on its own, for {read.for}
+                {read.by ? <b>, for {read.by} only</b> : null}:
+              </div>
               <div className="line">
                 <span>Each payment, at most</span>
                 <span>{amount(read.each, read.currency)}</span>

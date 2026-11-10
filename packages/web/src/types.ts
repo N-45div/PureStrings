@@ -31,7 +31,7 @@ export interface PaymentLine {
 export type Signed =
   | { readonly kind: "buy"; readonly id: string; readonly allow?: string; readonly by?: string; readonly shop: Payee; readonly cart: string; readonly items: readonly PaymentLine[]; readonly total: string; readonly currency: string; readonly expires: string }
   | { readonly kind: "link"; readonly id: string; readonly shop: Payee; readonly key: string; readonly expires: string }
-  | { readonly kind: "allow"; readonly id: string; readonly shop: Payee; readonly for: string; readonly agent: string; readonly each: string; readonly total: string; readonly per: "day" | "week" | "month"; readonly currency: string; readonly expires: string };
+  | { readonly kind: "allow"; readonly id: string; readonly shop: Payee; readonly for: string; readonly by?: string; readonly agent: string; readonly each: string; readonly total: string; readonly per: "day" | "week" | "month"; readonly currency: string; readonly expires: string };
 
 export interface SignView {
   readonly id: string;

@@ -128,7 +128,9 @@ function Waiting({ payment }: { readonly payment: SignView }) {
 function Allowances({ info }: { readonly info: Info | null }) {
   const link = useKeyLink();
   const allowances = useResource(() => api.allowances(), ["sign"]);
+  const agents = useResource(() => api.agents(), ["agents"]);
   const [said, setSaid] = useState("Coffee and tea, up to $15 a time and $40 a week");
+  const [by, setBy] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const shown = (allowances.data ?? []).filter((one) => one.status === "active" || one.status === "waiting");
@@ -137,7 +139,7 @@ function Allowances({ info }: { readonly info: Info | null }) {
     setError(null);
     try {
       // Signed by the key in this browser: with a button too, PureStrings would otherwise ask which.
-      await api.allow(info?.model ? { said } : { for: "Coffee", each: "15", total: "40", per: "week", days: 30 }, link.key?.key);
+      await api.allow({ ...(info?.model ? { said } : { for: "Coffee", each: "15", total: "40", per: "week", days: 30 }), ...(by ? { by } : {}) }, link.key?.key);
       await allowances.reload();
     } catch (caught) {
       setError(describeError(caught));
@@ -163,6 +165,7 @@ function Allowances({ info }: { readonly info: Info | null }) {
               <div className="spread">
                 <b>
                   {signed?.for} at {signed?.shop.name}
+                  {signed?.by ? <span className="pill info" style={{ marginLeft: 8 }}>{signed.by} only</span> : null}
                 </b>
                 {allowance.status === "waiting" ? (
                   <span className="pill wait">sign it on your key</span>
@@ -193,6 +196,16 @@ function Allowances({ info }: { readonly info: Info | null }) {
           {info?.model ? `Say it, and ${info.model} writes the limits; your key shows them before you sign` : "A new allowance (set MODEL_URL, MODEL and MODEL_KEY, or NEBIUS_API_KEY, to say it in words)"}
           <div className="row" style={{ flexWrap: "nowrap" }}>
             {info?.model ? <input className="input" value={said} onChange={(event) => setSaid(event.target.value)} onKeyDown={(event) => event.key === "Enter" && void ask()} /> : null}
+            {agents.data?.length ? (
+              <select className="input" style={{ width: "auto" }} value={by} onChange={(event) => setBy(event.target.value)} aria-label="Which assistant it's for">
+                <option value="">any assistant</option>
+                {agents.data.map((agent) => (
+                  <option key={agent.id} value={agent.name}>
+                    {agent.name} only
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <button type="button" className="btn primary" disabled={busy} onClick={() => void ask()}>
               {busy ? "Writing…" : info?.model ? "Ask" : "$15 a time, $40 a week"}
             </button>

@@ -11,7 +11,7 @@ export interface Shop {
 export type Readable =
   | { readonly kind: "buy"; readonly by: string | null; readonly allow: string | null; readonly shop: Shop; readonly items: readonly { readonly name: string; readonly qty: number; readonly price: string }[]; readonly total: string; readonly currency: string; readonly expires: string }
   | { readonly kind: "link"; readonly shop: Shop; readonly expires: string }
-  | { readonly kind: "allow"; readonly shop: Shop; readonly for: string; readonly each: string; readonly total: string; readonly per: string; readonly currency: string; readonly expires: string };
+  | { readonly kind: "allow"; readonly shop: Shop; readonly for: string; readonly by: string | null; readonly each: string; readonly total: string; readonly per: string; readonly currency: string; readonly expires: string };
 
 const text = (value: unknown, most = 200): value is string => typeof value === "string" && value.length > 0 && value.length <= most;
 const money = (value: unknown): value is string => typeof value === "string" && /^\d{1,7}\.\d{2}$/.test(value);
@@ -30,7 +30,7 @@ export function readSignable(signed: string): Readable | null {
   if (value.kind === "link") return { kind: "link", ...at };
   if (value.kind === "allow") {
     if (!text(value.for, 40) || !money(value.each) || !money(value.total) || !text(value.per, 10) || !text(value.currency, 3)) return null;
-    return { kind: "allow", ...at, for: value.for, each: value.each, total: value.total, per: value.per, currency: value.currency };
+    return { kind: "allow", ...at, for: value.for, by: text(value.by, 40) ? value.by : null, each: value.each, total: value.total, per: value.per, currency: value.currency };
   }
   if (value.kind !== "buy" || !Array.isArray(value.items) || !money(value.total) || !text(value.currency, 3)) return null;
   const items = value.items.map((item: Record<string, unknown>) => ({ name: item?.name, qty: item?.qty, price: item?.price }));

@@ -127,7 +127,10 @@ function KeyText({ shown, fresh }: { readonly shown: { readonly text: string; re
         <div>Link your PayPal here to this key.</div>
       ) : (
         <>
-          <div>Allowance: {read.for}</div>
+          <div>
+            Allowance: {read.for}
+            {read.by ? `, for ${read.by} only` : ""}
+          </div>
           <div>
             {amount(read.each, read.currency)} a time · {amount(read.total, read.currency)} a {read.per}
           </div>
