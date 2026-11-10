@@ -194,10 +194,10 @@ function Allowances({ info }: { readonly info: Info | null }) {
         {!shown.length ? <div className="empty">No allowances: every payment asks your key.</div> : null}
         <div className="field">
           {info?.model ? `Say it, and ${info.model} writes the limits; your key shows them before you sign` : "A new allowance (set MODEL_URL, MODEL and MODEL_KEY, or NEBIUS_API_KEY, to say it in words)"}
-          <div className="row" style={{ flexWrap: "nowrap" }}>
-            {info?.model ? <input className="input" value={said} onChange={(event) => setSaid(event.target.value)} onKeyDown={(event) => event.key === "Enter" && void ask()} /> : null}
+          <div className="row">
+            {info?.model ? <input className="input" style={{ flex: "1 1 260px" }} value={said} onChange={(event) => setSaid(event.target.value)} onKeyDown={(event) => event.key === "Enter" && void ask()} /> : null}
             {agents.data?.length ? (
-              <select className="input" style={{ width: "auto" }} value={by} onChange={(event) => setBy(event.target.value)} aria-label="Which assistant it's for">
+              <select className="input" style={{ width: "auto", flex: "0 1 auto" }} value={by} onChange={(event) => setBy(event.target.value)} aria-label="Which assistant it's for">
                 <option value="">any assistant</option>
                 {agents.data.map((agent) => (
                   <option key={agent.id} value={agent.name}>
