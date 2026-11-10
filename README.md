@@ -1,6 +1,7 @@
 # PureStrings
 
-**An open-source PayPal payment layer for personal AI assistants. Any assistant can shop; only your own key can pay.**
+**An open-source PayPal payment layer for the AI assistants you run yourself, with a key you build. Any assistant
+can shop; only your own key can pay.**
 
 ![PureStrings: your assistant can shop, only your key can pay](docs/images/landing.png)
 
@@ -13,6 +14,13 @@ charges PayPal.
 I built it because assistants are getting good at shopping, and giving one your card means anything it reads can
 spend your money. With PureStrings, a page that talks your assistant into buying a $200 gift card gets a cart on
 your key's screen, and a tap that says no.
+
+Open-source assistants like OpenClaw and Hermes Agent run on your own machine, and you can change anything about
+them. A hosted assistant can lean on its platform to pay; one you run yourself has had nothing safer than your
+card number. PureStrings is that missing piece, and it's open the same way:
+- you run PureStrings yourself;
+- you flash the button's firmware onto an off-the-shelf board;
+- the key protocol is written down, so you can build a key of your own.
 
 Live: [purestrings.onrender.com](https://purestrings.onrender.com) (the PayPal sandbox; the app asks for its
 token).
@@ -72,10 +80,10 @@ Optional settings:
 
 To host it, [`render.yaml`](render.yaml) deploys it on Render with a disk.
 
-## The button
+## The button: a key you build
 
-The PureStrings button is an ESP32-S3 board with a 1.8" screen, a speaker and one button. It makes its key in its
-own chip.
+The PureStrings button is an off-the-shelf ESP32-S3 board with a 1.8" screen, a speaker and one button, running
+open firmware you flash yourself. It makes its key in its own chip.
 - **Plugging in:** plug it into the computer PureStrings runs on, and PureStrings links it by itself. No Wi-Fi, no
   app, no driver.
 - **What it does:** it chimes, shows the cart and says it out loud. While you hold, a bar fills and ticks, and a
