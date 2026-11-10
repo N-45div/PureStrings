@@ -151,6 +151,12 @@ const char *startedBy() {
 void setup() {
   Serial.setRxBufferSize(32768);  // room for half a second of PureStrings' voice, and more
   Serial.begin(115200);
+#if ARDUINO_USB_MODE == 0
+  // Locked (built with USBMode=default): the cable is the chip's USB-OTG port, so no program on the computer can
+  // restart it into its flasher, and the chip's JTAG isn't on the cable at all. To update it, hold the button
+  // while you plug it in: the chip starts in its flasher only then.
+  Serial.enableReboot(false);
+#endif
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   led.begin();
   led.setBrightness(60);
@@ -179,6 +185,8 @@ void setup() {
   if (!ampReady) logLine("no speaker: it needs PSRAM (compile with PSRAM=opi) and the amp");
   logLine("PureStrings button: screen wiring %d, speaker %s, free memory %u KB, link %s", tftMap + 1, ampReady ? "on" : "off", ESP.getFreeHeap() / 1024, PURESTRINGS_LINK_USB ? "USB" : "Wi-Fi");
   logLine("started after %s", startedBy());
+  logLine(ARDUINO_USB_MODE == 0 ? "locked: to update it, hold the button while you plug it in"
+                                : "not locked: a program on this computer can flash it over USB (see README: Lock it)");
   beep(660, 100);
   beep(990, 140);
   startLink();

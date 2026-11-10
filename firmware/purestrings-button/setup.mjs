@@ -27,7 +27,7 @@ const server = (flag("server") ?? "http://127.0.0.1:7700").replace(/\/$/, "");
 const token = process.env.PURESTRINGS_TOKEN?.trim();
 const name = flag("name") ?? "PureStrings button";
 const out = flag("out") ?? join(here, "config.h");
-const FQBN = "esp32:esp32:esp32s3:USBMode=hwcdc,CDCOnBoot=cdc,FlashMode=qio,FlashSize=16M,PartitionScheme=app3M_fat9M_16MB,PSRAM=opi,DebugLevel=none";
+const FQBN = "esp32:esp32:esp32s3:USBMode=default,CDCOnBoot=cdc,FlashMode=qio,FlashSize=16M,PartitionScheme=app3M_fat9M_16MB,PSRAM=opi,DebugLevel=none";
 
 const fail = (message) => {
   console.error(`\n${message}`);
@@ -148,7 +148,7 @@ console.log(`\nWrote ${out} for "${name}" (${wifi ? `Wi-Fi, PureStrings at ${wif
 const ports = run("arduino-cli", ["board", "list"]).match(/^COM\d+|^\/dev\/tty(ACM|USB)\d+/gm) ?? [];
 const flash = `       arduino-cli compile --fqbn "${FQBN}" "${here}"
        arduino-cli upload --fqbn "${FQBN}" -p ${ports[0] ?? "<port: arduino-cli board list>"} "${here}"
-     If the upload can't find it: hold BOOT, tap RESET, let go of BOOT, and upload again.`;
+     It's built locked: once it is, it takes new firmware only if you hold its button while you plug it in.`;
 console.log(
   wifi
     ? `

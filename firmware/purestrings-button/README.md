@@ -59,13 +59,15 @@ it chimes and shows. What it says comes from the text it signs, but trust the sc
 3. **Compile and flash** with the button plugged in:
 
    ```bash
-   FQBN="esp32:esp32:esp32s3:USBMode=hwcdc,CDCOnBoot=cdc,FlashMode=qio,FlashSize=16M,PartitionScheme=app3M_fat9M_16MB,PSRAM=opi,DebugLevel=none"
+   FQBN="esp32:esp32:esp32s3:USBMode=default,CDCOnBoot=cdc,FlashMode=qio,FlashSize=16M,PartitionScheme=app3M_fat9M_16MB,PSRAM=opi,DebugLevel=none"
    arduino-cli board list                                   # find its port, e.g. COM5
    arduino-cli compile --fqbn "$FQBN" firmware/purestrings-button
    arduino-cli upload --fqbn "$FQBN" -p COM5 firmware/purestrings-button
    ```
 
-   If the upload can't find the button, hold BOOT, tap RESET, let go of BOOT and upload again.
+   That builds it **locked** (below). A button that's already locked takes new firmware only when you ask it to
+   in person: unplug it, hold its button while you plug it back in, let go, then upload (its port may change).
+   While you work on the firmware itself, `USBMode=hwcdc` builds it unlocked, so an upload needs no hands.
 
 4. **Over USB, connect it:** open PureStrings in Chrome or Edge, go to **Key**, press **Connect by USB** and
    pick the ESP32-S3. The card shows what the button says, then "Connected over USB". Press **Disconnect**
@@ -99,9 +101,26 @@ code PureStrings and the shop use. The test needs a C++ compiler and mbedTLS: `a
 or on Windows MSYS2's `mingw-w64-ucrt-x86_64-gcc` and `mingw-w64-ucrt-x86_64-mbedtls`. Without them it's
 skipped.
 
-The key sits in the chip's flash as plain bytes. Anyone with the button and a USB cable can read flash that
-isn't encrypted. For real money, turn on the ESP32-S3's flash encryption and NVS encryption, or keep the key in
-a secure element like an ATECC608.
+## Locked
+
+A key is only as good as the firmware it runs. If a program on your computer could quietly flash the button with
+firmware that signs without a hold, holding the button would prove nothing. So the button is built locked
+(`USBMode=default`):
+
+- Its cable goes to the ESP32-S3's USB-OTG port, and the firmware turns off the requests that restart a chip
+  into its flasher. `esptool` gets "Failed to connect to ESP32-S3: No serial data received", and Arduino's
+  1200-baud touch does nothing.
+- The chip's built-in JTAG debugger isn't on the cable at all, so nothing can stop the chip and read its memory
+  through it. Windows lists the button as a single serial port.
+- New firmware goes on only when you hold the button while plugging it in. The chip reads that button when it
+  starts, in its own ROM, before any firmware runs.
+
+The log says which it is at each start: `locked: to update it, hold the button while you plug it in`.
+
+Locking stops a program on the computer. It doesn't stop someone who has the button in their hands: they can
+hold it while plugging it in and flash it, or read the key out of the chip's flash, where it sits unencrypted.
+Closing that takes the chip's one-time eFuses (secure boot and flash encryption), or a secure element that keeps
+the key. [`docs/hardware-security.md`](../../docs/hardware-security.md) goes through what each step stops.
 
 ## If something's off
 
