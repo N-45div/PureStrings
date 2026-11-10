@@ -1,0 +1,252 @@
+/* The PureStrings button on the landing page, in its own screen's colours (from the firmware), paying for a cart. */
+
+.lp-device {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+}
+
+.lp-board {
+  position: relative;
+  width: 260px;
+  padding: 26px 26px 76px;
+  border-radius: 26px;
+  background: linear-gradient(160deg, #23262b, #121417);
+  box-shadow:
+    0 30px 60px rgb(16 20 41 / 35%),
+    inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+.lp-screen {
+  width: 208px;
+  height: 260px;
+  background: var(--lp-bg);
+  border-radius: 6px;
+  box-shadow: 0 0 0 3px #050608;
+  color: var(--lp-ink);
+  font: 13px/1.35 var(--mono);
+  overflow: hidden;
+  position: relative;
+}
+
+.lp-led {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #333;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.lp-device[data-at="ask"] .lp-led {
+  background: #2a7fff;
+  box-shadow: 0 0 12px #2a7fff;
+}
+
+.lp-device[data-at="hold"] .lp-led {
+  background: var(--lp-brass);
+  box-shadow: 0 0 14px var(--lp-brass);
+}
+
+.lp-device[data-at="paying"] .lp-led {
+  animation: lp-breathe 1.2s ease-in-out infinite;
+}
+
+.lp-device[data-at="paid"] .lp-led {
+  background: var(--lp-mint);
+  box-shadow: 0 0 14px var(--lp-mint);
+}
+
+@keyframes lp-breathe {
+  0%,
+  100% {
+    background: #12305a;
+    box-shadow: 0 0 2px #2a7fff;
+  }
+  50% {
+    background: #2a7fff;
+    box-shadow: 0 0 16px #2a7fff;
+  }
+}
+
+.lp-press {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  width: 44px;
+  height: 44px;
+  margin-left: -22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #3b3f46, #17191c);
+  box-shadow:
+    0 4px 0 #050608,
+    inset 0 1px 0 rgb(255 255 255 / 12%);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.lp-device[data-at="hold"] .lp-press {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 #050608,
+    0 0 0 6px rgb(255 190 33 / 18%);
+}
+
+.lp-idle,
+.lp-reply,
+.lp-sign {
+  position: absolute;
+  inset: 0;
+  padding: 12px 10px;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  text-align: center;
+  gap: 4px;
+  animation: lp-in 0.35s ease-out;
+}
+
+@keyframes lp-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.lp-screen b {
+  font: 700 20px/1.2 var(--sans);
+  margin-top: 26px;
+}
+
+.lp-screen small {
+  color: var(--lp-muted);
+  font-size: 12px;
+}
+
+.lp-screen strong {
+  color: var(--lp-brass);
+  font: 700 30px/1.1 var(--sans);
+  margin-top: 6px;
+}
+
+.lp-idle em {
+  font-style: normal;
+  color: #6b7299;
+  font-size: 11px;
+  margin-top: 30px;
+}
+
+.lp-idle b {
+  margin-top: 30px;
+}
+
+.lp-reply b {
+  margin-top: 60px;
+  color: var(--lp-mint);
+}
+
+.lp-reply b:not(.good) {
+  color: var(--lp-ink);
+}
+
+.lp-reply small {
+  color: var(--lp-ink);
+  font-size: 13px;
+  padding: 0 6px;
+}
+
+.lp-sign {
+  justify-items: stretch;
+}
+
+.lp-sign > small:first-child {
+  text-align: center;
+}
+
+.lp-sign strong {
+  text-align: center;
+}
+
+.lp-shop {
+  text-align: center;
+  color: var(--lp-brass);
+  font-size: 15px;
+}
+
+.lp-id {
+  text-align: center;
+}
+
+.lp-line {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.lp-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 22px;
+  text-align: center;
+  color: var(--lp-ink) !important;
+}
+
+.lp-bar {
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  bottom: 8px;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--lp-track);
+  overflow: hidden;
+}
+
+.lp-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--lp-brass);
+}
+
+.lp-device[data-at="hold"] .lp-bar i {
+  animation: lp-fill 2s linear forwards;
+}
+
+@keyframes lp-fill {
+  to {
+    width: 100%;
+  }
+}
+
+.lp-device figcaption {
+  max-width: 330px;
+  min-height: 3em;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.lp-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.lp-dots i {
+  width: 22px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  transition: background 0.3s;
+}
+
+.lp-dots i.on {
+  background: var(--brass);
+}
+
