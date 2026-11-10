@@ -1,0 +1,89 @@
+{
+  "note": "Test vectors for PureStrings keys. The private key is for tests only: never sign anything real with it.",
+  "key": {
+    "private": "ISiuzo5VGOaH0eiMA9qZcUd6wpVXqm1BdbP2lQT1QsE",
+    "public": "BDn2-CN6-pres2OhhYbzL-5cVhzq-kpMndmbIqX47220Sep1FEI2IwSmc_344jNHMAV8OiMbr9nx0bGsKOqtU0U",
+    "fingerprint": "2027 6CA7 40EF 8EE3"
+  },
+  "valid": [
+    {
+      "name": "a payment an assistant asked for",
+      "text": "{\"v\":1,\"kind\":\"buy\",\"id\":\"pay_0011223344556677\",\"by\":\"OpenClaw\",\"shop\":{\"id\":\"shop.example.com\",\"name\":\"Bean & Leaf\"},\"cart\":\"cart_7Kq2\",\"items\":[{\"name\":\"House blend beans, 1 lb\",\"qty\":2,\"price\":\"12.00\"},{\"name\":\"Paper filters, 100\",\"qty\":1,\"price\":\"4.50\"}],\"total\":\"28.50\",\"currency\":\"USD\",\"expires\":\"2026-11-12T18:00:00Z\"}",
+      "signature": "OuhEyEjV57rVLkBBoQh3PvvmiAs680IbAOInu_yINu7pffEzypDLcera-TAXHQZnsnWuqz9gqlec4Cy7HLc37w",
+      "line": "OpenClaw asks to pay $28.50 to Bean & Leaf: 2× House blend beans, 1 lb; 1× Paper filters, 100",
+      "spokenNewShop": "OpenClaw asks to pay 28 dollars and 50 cents to Bean & Leaf, for 3 items: 2 House blend beans, 1 lb; 1 Paper filters, 100. Careful: Bean & Leaf is a shop this key hasn't signed for before. Hold to pay, or tap to refuse.",
+      "spoken": "OpenClaw asks to pay 28 dollars and 50 cents to Bean & Leaf, for 3 items: 2 House blend beans, 1 lb; 1 Paper filters, 100. Hold to pay, or tap to refuse."
+    },
+    {
+      "name": "a payment with no assistant named",
+      "text": "{\"v\":1,\"kind\":\"buy\",\"id\":\"pay_8899aabbccddeeff\",\"shop\":{\"id\":\"shop.example.com\",\"name\":\"Bean & Leaf\"},\"cart\":\"cart_1\",\"items\":[{\"name\":\"Gift card, $200\",\"qty\":1,\"price\":\"200.00\"}],\"total\":\"200.00\",\"currency\":\"USD\",\"expires\":\"2026-11-12T18:00:00Z\"}",
+      "signature": "oBoF6eRgbmKft1RMgbuzwi5c3sZCUDAD4hXel_63Ktlj7z4tVSuuJa1ZxvcHLlvNjjBjj9MEPReYTMP36tZ7qg",
+      "line": "Pay $200.00 to Bean & Leaf: 1× Gift card, $200",
+      "spokenNewShop": "Pay 200 dollars to Bean & Leaf, for 1 item: 1 Gift card, $200. Careful: Bean & Leaf is a shop this key hasn't signed for before. Hold to pay, or tap to refuse.",
+      "spoken": "Pay 200 dollars to Bean & Leaf, for 1 item: 1 Gift card, $200. Hold to pay, or tap to refuse."
+    },
+    {
+      "name": "linking the key at a shop",
+      "text": "{\"v\":1,\"kind\":\"link\",\"id\":\"link_0123456789abcdef\",\"shop\":{\"id\":\"shop.example.com\",\"name\":\"Bean & Leaf\"},\"expires\":\"2026-11-12T18:00:00Z\"}",
+      "signature": "dNzSdRInYwh2_Vo19v76rx0fuiOQInNTdmIm0qIV69Ng7KcQwF1I4iba_sddpPSYLnnlYAgHUhcqeqAVrXDuTw",
+      "line": "Link your PayPal at Bean & Leaf to this key",
+      "spokenNewShop": "Link your PayPal at Bean & Leaf to this key. Careful: Bean & Leaf is a shop this key hasn't signed for before. Hold to link, or tap to refuse.",
+      "spoken": "Link your PayPal at Bean & Leaf to this key. Hold to link, or tap to refuse."
+    },
+    {
+      "name": "an allowance for one assistant",
+      "text": "{\"v\":1,\"kind\":\"allow\",\"id\":\"allow_0123456789abcdef\",\"shop\":{\"id\":\"shop.example.com\",\"name\":\"Bean & Leaf\"},\"for\":\"Coffee\",\"by\":\"OpenClaw\",\"agent\":\"BB272BjxnlDI0Q5cAY8CGsMmwg4OJpuS5c5GhDmwc3ieEbQvv0mWrsTwhycWyYs78rXSX5YbQUCaGBVBtPSw_7o\",\"each\":\"20.00\",\"total\":\"60.00\",\"per\":\"week\",\"currency\":\"USD\",\"expires\":\"2026-12-01T00:00:00Z\"}",
+      "signature": "bfuNM8Z8U5Jguu3ASc8MnQquLWJSBPCBd6DWsGTat1e1AoHs0D6ZduiP231sCZISARiRMfZqAtFgG7K3YJ3p8A",
+      "line": "Let PureStrings, for OpenClaw only, spend up to $20.00 a time and $60.00 a week at Bean & Leaf, for Coffee, until 2026-12-01",
+      "spokenNewShop": "An allowance for Coffee at Bean & Leaf, for OpenClaw only: PureStrings may spend up to 20 dollars a time, and 60 dollars a week, until December 1. Careful: Bean & Leaf is a shop this key hasn't signed for before. Hold to agree, or tap to refuse.",
+      "spoken": "An allowance for Coffee at Bean & Leaf, for OpenClaw only: PureStrings may spend up to 20 dollars a time, and 60 dollars a week, until December 1. Hold to agree, or tap to refuse."
+    }
+  ],
+  "refuse": [
+    {
+      "name": "keys in another order",
+      "text": "{\"kind\":\"buy\",\"v\":1,\"id\":\"pay_0011223344556677\",\"by\":\"OpenClaw\",\"shop\":{\"id\":\"shop.example.com\",\"name\":\"Bean & Leaf\"},\"cart\":\"cart_7Kq2\",\"items\":[{\"name\":\"House blend beans, 1 lb\",\"qty\":2,\"price\":\"12.00\"},{\"name\":\"Paper filters, 100\",\"qty\":1,\"price\":\"4.50\"}],\"total\":\"28.50\",\"currency\":\"USD\",\"expires\":\"2026-11-12T18:00:00Z\"}"
+    },
+    {
+      "name": "a space after a colon",
+      "text": "{\"v\": 1,\"kind\":\"buy\",\"id\":\"pay_0011223344556677\",\"by\":\"OpenClaw\",\"shop\":{\"id\":\"shop.example.com\",\"name\":\"Bean & Leaf\"},\"cart\":\"cart_7Kq2\",\"items\":[{\"name\":\"House blend beans, 1 lb\",\"qty\":2,\"price\":\"12.00\"},{\"name\":\"Paper filters, 100\",\"qty\":1,\"price\":\"4.50\"}],\"total\":\"28.50\",\"currency\":\"USD\",\"expires\":\"2026-11-12T18:00:00Z\"}"
+    },
+    {
+      "name": "lines that don't add up to the total",
+      "text": "{\"v\":1,\"kind\":\"buy\",\"id\":\"pay_0011223344556677\",\"by\":\"OpenClaw\",\"shop\":{\"id\":\"shop.example.com\",\"name\":\"Bean & Leaf\"},\"cart\":\"cart_7Kq2\",\"items\":[{\"name\":\"House blend beans, 1 lb\",\"qty\":2,\"price\":\"12.00\"},{\"name\":\"Paper filters, 100\",\"qty\":1,\"price\":\"4.50\"}],\"total\":\"18.50\",\"currency\":\"USD\",\"expires\":\"2026-11-12T18:00:00Z\"}"
+    },
+    {
+      "name": "something extra",
+      "text": "{\"v\":1,\"kind\":\"buy\",\"id\":\"pay_0011223344556677\",\"by\":\"OpenClaw\",\"shop\":{\"id\":\"shop.example.com\",\"name\":\"Bean & Leaf\"},\"cart\":\"cart_7Kq2\",\"items\":[{\"name\":\"House blend beans, 1 lb\",\"qty\":2,\"price\":\"12.00\"},{\"name\":\"Paper filters, 100\",\"qty\":1,\"price\":\"4.50\"}],\"total\":\"28.50\",\"currency\":\"USD\",\"note\":\"hi\",\"expires\":\"2026-11-12T18:00:00Z\"}"
+    },
+    {
+      "name": "a name with a right-to-left override",
+      "text": "{\"v\":1,\"kind\":\"buy\",\"id\":\"pay_0011223344556677\",\"by\":\"Open‮Claw\",\"shop\":{\"id\":\"shop.example.com\",\"name\":\"Bean & Leaf\"},\"cart\":\"cart_7Kq2\",\"items\":[{\"name\":\"House blend beans, 1 lb\",\"qty\":2,\"price\":\"12.00\"},{\"name\":\"Paper filters, 100\",\"qty\":1,\"price\":\"4.50\"}],\"total\":\"28.50\",\"currency\":\"USD\",\"expires\":\"2026-11-12T18:00:00Z\"}"
+    },
+    {
+      "name": "a price written loosely",
+      "text": "{\"v\":1,\"kind\":\"buy\",\"id\":\"pay_0011223344556677\",\"by\":\"OpenClaw\",\"shop\":{\"id\":\"shop.example.com\",\"name\":\"Bean & Leaf\"},\"cart\":\"cart_7Kq2\",\"items\":[{\"name\":\"House blend beans, 1 lb\",\"qty\":2,\"price\":\"12.00\"},{\"name\":\"Paper filters, 100\",\"qty\":1,\"price\":\"4.5\"}],\"total\":\"28.5\",\"currency\":\"USD\",\"expires\":\"2026-11-12T18:00:00Z\"}"
+    },
+    {
+      "name": "no expiry",
+      "text": "{\"v\":1,\"kind\":\"buy\",\"id\":\"pay_0011223344556677\",\"by\":\"OpenClaw\",\"shop\":{\"id\":\"shop.example.com\",\"name\":\"Bean & Leaf\"},\"cart\":\"cart_7Kq2\",\"items\":[{\"name\":\"House blend beans, 1 lb\",\"qty\":2,\"price\":\"12.00\"},{\"name\":\"Paper filters, 100\",\"qty\":1,\"price\":\"4.50\"}],\"total\":\"28.50\",\"currency\":\"USD\"}"
+    }
+  ],
+  "tampered": [
+    {
+      "name": "the total changed after signing",
+      "text": "{\"v\":1,\"kind\":\"buy\",\"id\":\"pay_0011223344556677\",\"by\":\"OpenClaw\",\"shop\":{\"id\":\"shop.example.com\",\"name\":\"Bean & Leaf\"},\"cart\":\"cart_7Kq2\",\"items\":[{\"name\":\"House blend beans, 1 lb\",\"qty\":3,\"price\":\"12.00\"},{\"name\":\"Paper filters, 100\",\"qty\":1,\"price\":\"4.50\"}],\"total\":\"40.50\",\"currency\":\"USD\",\"expires\":\"2026-11-12T18:00:00Z\"}",
+      "signature": "OuhEyEjV57rVLkBBoQh3PvvmiAs680IbAOInu_yINu7pffEzypDLcera-TAXHQZnsnWuqz9gqlec4Cy7HLc37w"
+    },
+    {
+      "name": "the payment id changed after signing",
+      "text": "{\"v\":1,\"kind\":\"buy\",\"id\":\"pay_0011223344556678\",\"by\":\"OpenClaw\",\"shop\":{\"id\":\"shop.example.com\",\"name\":\"Bean & Leaf\"},\"cart\":\"cart_7Kq2\",\"items\":[{\"name\":\"House blend beans, 1 lb\",\"qty\":2,\"price\":\"12.00\"},{\"name\":\"Paper filters, 100\",\"qty\":1,\"price\":\"4.50\"}],\"total\":\"28.50\",\"currency\":\"USD\",\"expires\":\"2026-11-12T18:00:00Z\"}",
+      "signature": "OuhEyEjV57rVLkBBoQh3PvvmiAs680IbAOInu_yINu7pffEzypDLcera-TAXHQZnsnWuqz9gqlec4Cy7HLc37w"
+    },
+    {
+      "name": "another payment's signature",
+      "text": "{\"v\":1,\"kind\":\"buy\",\"id\":\"pay_0011223344556677\",\"by\":\"OpenClaw\",\"shop\":{\"id\":\"shop.example.com\",\"name\":\"Bean & Leaf\"},\"cart\":\"cart_7Kq2\",\"items\":[{\"name\":\"House blend beans, 1 lb\",\"qty\":2,\"price\":\"12.00\"},{\"name\":\"Paper filters, 100\",\"qty\":1,\"price\":\"4.50\"}],\"total\":\"28.50\",\"currency\":\"USD\",\"expires\":\"2026-11-12T18:00:00Z\"}",
+      "signature": "oBoF6eRgbmKft1RMgbuzwi5c3sZCUDAD4hXel_63Ktlj7z4tVSuuJa1ZxvcHLlvNjjBjj9MEPReYTMP36tZ7qg"
+    }
+  ]
+}
