@@ -20,6 +20,7 @@ struct TftPins {
 constexpr TftPins TFT_MAPS[2] = {{45, 1, 43, 44, 42, 38}, {45, 38, 1, 42, 43, 44}};
 
 constexpr unsigned long HOLD_SIGN_MS = 2000;  // a payment takes a full two-second hold: it's money
+constexpr unsigned long TAP_MS = 600;         // shorter is a tap (no); longer but not full, let go early (nothing)
 constexpr size_t SIGN_LINES = 6;              // a cart's lines on one page of the screen
 constexpr unsigned long SIGN_PAGE_MS = 3000;  // a longer cart turns to its next page this often
 constexpr unsigned long REPLY_MS = 8000;      // how long an answer ("Paid", "Didn't go through") stays up
@@ -50,6 +51,9 @@ String signerNote;
 String replyHead, replyText;
 bool replyGood = false;
 unsigned long replyUntil = 0;
+// Signed, and the shop is charging PayPal: the LED breathes until PureStrings says how it went.
+bool paying = false;
+unsigned long payingSince = 0;
 
 // ---- Small helpers ------------------------------------------------------------------------------------
 /** One line on USB (115200 baud): what the button is doing, for when the screen can't say. */
@@ -65,22 +69,92 @@ void setLed(uint8_t r, uint8_t g, uint8_t b) {
   led.show();
 }
 
-/** A short tone on the speaker, faded in and out so it doesn't click. Quiet when there's no speaker. */
+// ---- The speaker: everything it plays goes through one ring of 16-bit samples at 24 kHz, in PSRAM, played by
+// its own task. PureStrings' voice (what's to sign, how it went) and the beeps share it, so they never overlap.
+constexpr uint32_t RATE = 24000;
+constexpr size_t PLAY_BUFFER = RATE * 2 * 20;  // 20 s of sound
+uint8_t *ring = nullptr;
+volatile size_t ringHead = 0, ringTail = 0;
+portMUX_TYPE ringLock = portMUX_INITIALIZER_UNLOCKED;
+volatile bool playing = false;  // sound came out in the last moment
+volatile bool hushed = false;   // you're holding to sign: PureStrings' voice waits, only the hold's ticks play
+
+void flushPlayback() {
+  portENTER_CRITICAL(&ringLock);
+  ringHead = 0;
+  ringTail = 0;
+  portEXIT_CRITICAL(&ringLock);
+}
+
+/** Whole 16-bit samples into the ring; full, the rest is dropped. */
+void queueAudio(const uint8_t *data, size_t length) {
+  if (!ring) return;
+  portENTER_CRITICAL(&ringLock);
+  for (size_t i = 0; i + 1 < length; i += 2) {
+    size_t next = (ringHead + 2) % PLAY_BUFFER;
+    if (next == ringTail) break;
+    ring[ringHead] = data[i];
+    ring[ringHead + 1] = data[i + 1];
+    ringHead = next;
+  }
+  portEXIT_CRITICAL(&ringLock);
+}
+
+/** PureStrings' voice into the ring, unless you're holding to sign: nothing talks over the hold. */
+void queueVoice(const uint8_t *data, size_t length) {
+  if (!hushed) queueAudio(data, length);
+}
+
+/** A short tone, faded in and out so it doesn't click. */
 void beep(float hz, int ms) {
-  if (!ampReady || VOLUME <= 0) return;
-  constexpr uint32_t RATE = 16000;
-  static int16_t chunk[160];
+  static int16_t chunk[240];
   const int total = RATE * ms / 1000;
-  const float level = min(1.0f, VOLUME / 100.0f) * 0.3f;
   for (int done = 0; done < total;) {
-    int n = min(160, total - done);
+    int n = min(240, total - done);
     for (int i = 0; i < n; i++) {
-      float fade = min(1.0f, min((done + i) / 160.0f, (total - done - i) / 160.0f));
-      chunk[i] = (int16_t)(sinf(2 * PI * hz * (done + i) / RATE) * 32767 * level * fade);
+      float fade = min(1.0f, min((done + i) / 240.0f, (total - done - i) / 240.0f));
+      chunk[i] = (int16_t)(sinf(2 * PI * hz * (done + i) / RATE) * 32767 * 0.45f * fade);
     }
-    amp.write(reinterpret_cast<uint8_t *>(chunk), n * 2);
+    queueAudio(reinterpret_cast<uint8_t *>(chunk), n * 2);
     done += n;
   }
+}
+
+/**
+ * Plays the ring at VOLUME, 10 ms at a time, and silence between sounds so the amp doesn't pop. VOLUME runs 0 to
+ * 200: past 100 it's louder than the sound itself, its loudest peaks rounded off instead of clipping harshly.
+ */
+void playTask(void *) {
+  static int16_t frame[240];
+  const int32_t gain = constrain(VOLUME, 0, 200) * 256 / 100;  // in 256ths
+  for (;;) {
+    size_t got = 0;
+    portENTER_CRITICAL(&ringLock);
+    while (got < sizeof frame && ringTail != ringHead) {
+      reinterpret_cast<uint8_t *>(frame)[got++] = ring[ringTail];
+      ringTail = (ringTail + 1) % PLAY_BUFFER;
+    }
+    portEXIT_CRITICAL(&ringLock);
+    size_t samples = got / 2;
+    playing = samples > 0;
+    for (size_t i = 0; i < samples; i++) {
+      int32_t level = (int32_t)frame[i] * gain / 256;
+      int32_t size = abs(level);
+      if (size > 24000) size = min((int32_t)32767, 24000 + (size - 24000) / 4);
+      frame[i] = (int16_t)(level < 0 ? -size : size);
+    }
+    for (size_t i = samples; i < 240; i++) frame[i] = 0;
+    amp.write(reinterpret_cast<uint8_t *>(frame), sizeof frame);
+  }
+}
+
+/** The speaker at 24 kHz, its ring in PSRAM, and the task that plays it. False without PSRAM or an amp. */
+bool startSpeaker() {
+  ring = static_cast<uint8_t *>(ps_malloc(PLAY_BUFFER));
+  amp.setPins(AMP_BCLK, AMP_LRC, AMP_DIN);
+  if (!ring || !amp.begin(I2S_MODE_STD, RATE, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO)) return false;
+  xTaskCreatePinnedToCore(playTask, "play", 4096, nullptr, 2, nullptr, 0);
+  return true;
 }
 
 /**

@@ -1,7 +1,8 @@
 // The button's link to PureStrings (/keys/ws), one of two ways:
-//   USB (PURESTRINGS_LINK_USB 1): each message is a frame on the cable: STX (0x02), 'T', its length (4 bytes,
-//     little-endian), then the JSON. PureStrings' Key screen, open in Chrome or Edge, passes frames on to /keys/ws
-//     as this button, with the token it announces ("Connect by USB"). Log lines share the cable, between frames.
+//   USB (PURESTRINGS_LINK_USB 1): each message is a frame on the cable: STX (0x02), 'T' (or 'B', PureStrings'
+//     voice), its length (4 bytes, little-endian), then the JSON. PureStrings reads the cable itself when the button
+//     is plugged into the machine it runs on; or its Key screen, open in Chrome or Edge, passes frames on to
+//     /keys/ws ("Connect by USB"). Either checks the token it announces. Log lines share the cable, between frames.
 //   Wi-Fi: a WebSocket to PURESTRINGS_URL, with the token as a bearer.
 // Either way it's the same conversation: PureStrings says hello, the button says its public key, PureStrings says
 // whether it keeps it (signer), then sends what's waiting (sign) or that nothing is (idle). The button answers
@@ -28,6 +29,16 @@ void sendJson(JsonDocument &doc) {
 #endif
 }
 
+/** Why a hold didn't sign, over the lines for a while: the request stays, so hold again. */
+void hint(const String &text) {
+  replyHead = "Not signed";
+  replyText = text;
+  replyGood = false;
+  replyUntil = millis() + 4000;
+  setLed(0, 20, 40);
+  redraw = true;
+}
+
 /** An answer to show for a while on the idle screen. */
 void reply(const String &head, const String &text, bool good) {
   replyHead = head;
@@ -47,9 +58,10 @@ void linkOpened() {
 }
 
 void linkClosed() {
+  paying = false;
 #if PURESTRINGS_LINK_USB
-  logLine(linkUp ? "lost PureStrings on USB; waiting for the Key screen again" : "waiting for PureStrings on USB: open its Key screen in Chrome or Edge and press Connect by USB");
-  note = "Open PureStrings' Key screen in Chrome or Edge, then Connect by USB.";
+  logLine(linkUp ? "lost PureStrings on USB; waiting for it again" : "waiting for PureStrings on USB: plug me into the machine it runs on");
+  note = "Plug me into the computer running PureStrings.";
 #else
   logLine(mode == Mode::Connecting ? "can't reach PureStrings at %s (is it listening beyond its machine, the token right?)" : "lost PureStrings; retrying every 3 s", PURESTRINGS_URL);
   note = "Can't reach PureStrings yet. Retrying...";
@@ -65,7 +77,7 @@ void onMessage(const char *payload, size_t length) {
   JsonDocument doc;
   if (deserializeJson(doc, payload, length)) return;
   String type = doc["type"] | "";
-  // The Key screen's own messages on the USB link: PureStrings is there, gone, or the page is still listening.
+  // The USB link's own messages: PureStrings is there, gone, or still listening.
   if (type == "usb-ping") return;
   if (type == "usb-open") return linkOpened();
   if (type == "usb-closed") return linkClosed();
@@ -86,6 +98,7 @@ void onMessage(const char *payload, size_t length) {
     startSigning(doc["id"] | "", doc["text"] | "", doc["more"] | 0);
     setLed(0, 20, 40);
     if (fresh) {
+      flushPlayback();  // whatever it was saying is stale; PureStrings' voice for this one follows
       beep(880, 90);
       beep(1320, 120);
     }
@@ -97,62 +110,119 @@ void onMessage(const char *payload, size_t length) {
     spentToday = doc["spentTodayUsd"] | 0.0f;
     redraw = true;
   } else if (type == "signed") {
-    // PureStrings took the signature; the shop's answer comes as "payment".
+    // PureStrings took the signature; the shop charges PayPal now, and its answer comes as "payment".
     rememberShop(signShopId);
-    reply("Signed", "Waiting for the shop...", true);
+    reply("Signed", signKind == "buy" ? "Paying with PayPal..." : signKind == "link" ? "Opening PayPal..." : "Setting it...", true);
+    paying = true;
+    payingSince = millis();
   } else if (type == "answered") {
     reply("Refused", "Nothing was paid.", false);
+    beep(440, 70);
+    beep(330, 160);
   } else if (type == "payment") {
     String status = doc["status"] | "";
     bool went = status == "paid" || status == "linking" || status == "set";
+    paying = false;
     reply(status == "paid" ? "Paid" : status == "linking" ? "Signed" : status == "set" ? "Allowance set" : "Didn't go", doc["line"] | "", went);
-    if (went) beep(1320, 140);
-    else beep(330, 300);
+    if (went) {
+      // Paid: a rising chord, then PureStrings says what was paid.
+      beep(1047, 70);
+      beep(1319, 70);
+      beep(1568, 180);
+    } else {
+      beep(392, 120);
+      beep(262, 320);
+    }
   } else if (type == "error") {
     String message = doc["message"] | "Something went wrong.";
     logLine("  error: %s", message.c_str());
+    paying = false;
     reply("Not done", message, false);
+    beep(262, 300);
   }
 }
 
 #if PURESTRINGS_LINK_USB
+// The cable is read by its own task, ahead of the loop, so drawing the screen never leaves it unread: the
+// ESP32-S3's USB serial drops whatever doesn't fit its buffer, and that breaks the voice. Sound goes straight to the
+// speaker's ring; messages wait in a queue for the loop.
 uint8_t frameHead[6];
 size_t headGot = 0, frameLeft = 0;
 String frameText;
-unsigned long lastHeard = 0, lastAnnounce = 0;
+volatile unsigned long lastHeard = 0;
+unsigned long lastAnnounce = 0;
+QueueHandle_t cableMessages = nullptr;  // String *: the loop handles each, then deletes it
+// A sound frame split mid-sample across reads: its first byte, kept until the second comes.
+uint8_t halfSample = 0;
+bool holdingHalf = false;
 
-/** Reads frames off the cable, says who this button is until the Key screen answers, and notices it going quiet. */
-void linkLoop() {
-  static uint8_t chunk[512];
-  while (Serial.available() > 0) {
-    size_t got = Serial.read(chunk, min((size_t)Serial.available(), sizeof chunk));
-    for (size_t i = 0; i < got;) {
-      if (headGot < sizeof frameHead) {
-        if (headGot == 0 && chunk[i] != STX) {
-          i++;
-          continue;
-        }
-        frameHead[headGot++] = chunk[i++];
-        if (headGot < sizeof frameHead) continue;
-        frameLeft = frameHead[2] | (frameHead[3] << 8) | (frameHead[4] << 16) | ((size_t)frameHead[5] << 24);
-        if (frameHead[1] != 'T' || frameLeft > 8192) {
-          headGot = 0;  // not a frame after all: look for the next STX
-          continue;
-        }
-        frameText = "";
-        if (frameLeft == 0) headGot = 0;
+/** Sound off the cable into the speaker's ring, whole samples only. */
+void queueFromCable(const uint8_t *data, size_t length) {
+  if (holdingHalf && length) {
+    const uint8_t pair[2] = {halfSample, data[0]};
+    queueVoice(pair, 2);
+    data++;
+    length--;
+    holdingHalf = false;
+  }
+  queueVoice(data, length & ~(size_t)1);
+  if (length & 1) {
+    halfSample = data[length - 1];
+    holdingHalf = true;
+  }
+}
+
+/** Bytes off the cable, put back together into frames: sound to the speaker, messages to the loop. */
+void takeFromCable(const uint8_t *chunk, size_t got) {
+  for (size_t i = 0; i < got;) {
+    if (headGot < sizeof frameHead) {
+      if (headGot == 0 && chunk[i] != STX) {
+        i++;
         continue;
       }
-      size_t n = min(frameLeft, got - i);
-      frameText.concat(reinterpret_cast<const char *>(chunk + i), n);
-      i += n;
-      frameLeft -= n;
-      if (frameLeft == 0) {
-        lastHeard = millis();
-        headGot = 0;
-        onMessage(frameText.c_str(), frameText.length());
+      frameHead[headGot++] = chunk[i++];
+      if (headGot < sizeof frameHead) continue;
+      frameLeft = frameHead[2] | (frameHead[3] << 8) | (frameHead[4] << 16) | ((size_t)frameHead[5] << 24);
+      if ((frameHead[1] != 'T' && frameHead[1] != 'B') || frameLeft > 65536) {
+        headGot = 0;  // not a frame after all: look for the next STX
+        continue;
+      }
+      frameText = "";
+      holdingHalf = false;
+      if (frameLeft == 0) headGot = 0;
+      continue;
+    }
+    size_t n = min(frameLeft, got - i);
+    if (frameHead[1] == 'B') queueFromCable(chunk + i, n);
+    else frameText.concat(reinterpret_cast<const char *>(chunk + i), n);
+    i += n;
+    frameLeft -= n;
+    if (frameLeft == 0) {
+      lastHeard = millis();
+      headGot = 0;
+      if (frameHead[1] == 'T') {
+        String *message = new String(std::move(frameText));
+        if (xQueueSend(cableMessages, &message, 0) != pdTRUE) delete message;
       }
     }
+  }
+}
+
+void cableTask(void *) {
+  static uint8_t chunk[1024];
+  for (;;) {
+    int ready = Serial.available();
+    if (ready > 0) takeFromCable(chunk, Serial.read(chunk, min((size_t)ready, sizeof chunk)));
+    else vTaskDelay(1);
+  }
+}
+
+/** Handles what came off the cable, says who this button is until PureStrings answers, and notices it going quiet. */
+void linkLoop() {
+  String *message;
+  while (xQueueReceive(cableMessages, &message, 0) == pdTRUE) {
+    onMessage(message->c_str(), message->length());
+    delete message;
   }
   unsigned long now = millis();
   if (!linkUp && now - lastAnnounce > 2000) {
@@ -162,16 +232,21 @@ void linkLoop() {
     hello["token"] = PURESTRINGS_TOKEN;
     sendJson(hello);
   }
-  // The Key screen pings every 5 s; quiet for 15, the page is gone.
-  if (linkUp && now - lastHeard > 15000) linkClosed();
+  // PureStrings (or the Key screen) pings every 5 s; quiet for 15, it's gone.
+  if (linkUp && (long)(now - lastHeard) > 15000) linkClosed();
 }
 
-void startLink() { linkClosed(); }
+void startLink() {
+  cableMessages = xQueueCreate(16, sizeof(String *));
+  xTaskCreatePinnedToCore(cableTask, "cable", 4096, nullptr, 3, nullptr, 1);
+  linkClosed();
+}
 #else
 void onSocket(WStype_t type, uint8_t *payload, size_t length) {
   if (type == WStype_CONNECTED) linkOpened();
   else if (type == WStype_DISCONNECTED) linkClosed();
   else if (type == WStype_TEXT) onMessage(reinterpret_cast<const char *>(payload), length);
+  else if (type == WStype_BIN) queueVoice(payload, length);  // PureStrings' voice
 }
 
 void linkLoop() { socket.loop(); }

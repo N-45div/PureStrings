@@ -6,9 +6,11 @@ The PureStrings button is a key you can hold. It's an
 sign: who asked, the shop, each line and the total. It signs only when you hold the button for two seconds.
 The shop charges your PayPal only for a cart that this key signed.
 
-- **Something to sign:** it beeps and shows the total, then who's paid, then each line. A shop it hasn't
-  signed for before shows **NEW** in red, so a lookalike stands out. Hold for two seconds to sign; a bar fills,
-  and you let go once it's full. A quick press refuses.
+- **Something to sign:** it chimes and shows the total, then who's paid, then each line, and it says it aloud
+  ("OpenClaw asks to pay 12 dollars to Bean & Leaf..."). A shop it hasn't signed for before shows **NEW** in red,
+  and it warns you, so a lookalike stands out. Hold for two seconds to sign: a bar fills and ticks, and a chirp
+  says it's full. Let go, and the LED breathes while the shop charges your PayPal; then it chimes and says what
+  was paid. A tap refuses. Let go early and nothing's sent: hold again.
 - **A long cart:** more than six lines turn their pages every three seconds. It signs only once every page
   has been shown.
 - **Links and allowances:** linking the key to your PayPal at a shop, and an allowance (what PureStrings may
@@ -17,11 +19,17 @@ The shop charges your PayPal only for a cart that this key signed.
 
 It talks to PureStrings over its USB cable (the default) or over Wi-Fi.
 
-- **USB:** PureStrings' Key screen, open in Chrome or Edge, reads the button through Web Serial and passes
-  its messages on. There's no Wi-Fi, no address and no firewall rule, and the ESP32-S3's own USB port needs no
-  driver.
+- **USB:** plugged into the computer PureStrings runs on, PureStrings finds the button and links it itself,
+  with no page open. Plugged into another computer, PureStrings' Key screen in Chrome or Edge reads it through
+  Web Serial and passes its messages on ("Connect by USB"). Either way there's no Wi-Fi, no address and no
+  firewall rule, and the ESP32-S3's own USB port needs no driver. Set `PURESTRINGS_USB=off` to leave it to the
+  Key screen.
 - **Wi-Fi:** the button connects to PureStrings' key socket (`/keys/ws`) by itself. That's your machine on your
   network, or a hosted PureStrings over `wss://`.
+
+Its voice comes from PureStrings. With an OpenAI key set (`OPENAI_API_KEY`, or `MODEL_KEY` with OpenAI's
+`MODEL_URL`), OpenAI's `gpt-4o-mini-tts` makes the words and PureStrings streams them to the speaker. Without a key,
+it chimes and shows. What it says comes from the text it signs, but trust the screen: that's what the key read.
 
 ## Set it up
 

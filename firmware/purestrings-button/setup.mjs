@@ -136,8 +136,8 @@ writeFileSync(
   `// Written by setup.mjs for "${cString(name)}". Holds the button's token${wifi ? " and your Wi-Fi password" : ""}: it stays out of git.
 #define PURESTRINGS_LINK_USB ${wifi ? 0 : 1}
 #define PURESTRINGS_TOKEN "${cString(device.token)}"
-${wifi ? `#define WIFI_SSID "${cString(wifi.ssid)}"\n#define WIFI_PASSWORD "${cString(wifi.password)}"\n#define PURESTRINGS_URL "${cString(wifi.socketUrl)}"` : "// Over the USB cable: PureStrings' Key screen passes its messages on. No Wi-Fi needed."}
-#define VOLUME 60
+${wifi ? `#define WIFI_SSID "${cString(wifi.ssid)}"\n#define WIFI_PASSWORD "${cString(wifi.password)}"\n#define PURESTRINGS_URL "${cString(wifi.socketUrl)}"` : "// Over the USB cable: PureStrings (or its Key screen) passes its messages on. No Wi-Fi needed."}
+#define VOLUME 150
 #define SCREEN_INVERT 0
 #define SCREEN_FLIP 0
 `,

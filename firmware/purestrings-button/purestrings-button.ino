@@ -2,11 +2,12 @@
 // sign (who asked, the shop, each line, the total), read from the text it signs, and signs it with a P-256 key made
 // in its own chip, only when you hold its button for two seconds.
 //
-//   Something to sign: hold 2 s (a bar fills; let go once it's full) = sign. A quick press = refuse.
+//   Something to sign: it chimes and says it. Hold 2 s (a bar fills, ticking; let go at the chirp) = sign: the shop
+//                      charges PayPal, and it says what was paid. A tap = refuse. Let go early = nothing; hold again.
 //   A long cart:       its pages turn by themselves; it signs only once every line has been shown.
 //   Screen blank?      tap five times quickly with nothing to sign: it switches to the other screen wiring.
 //
-// It talks to PureStrings over its USB cable (through the Key screen in Chrome or Edge) or over Wi-Fi: see
+// It talks to PureStrings over its USB cable (plugged into the machine PureStrings runs on) or over Wi-Fi: see
 // config.example.h and README.md. Everything it does is logged on USB at 115200 baud.
 
 #if __has_include("config.h")
@@ -18,7 +19,7 @@
 #define PURESTRINGS_LINK_USB 1
 #endif
 #ifndef VOLUME
-#define VOLUME 60
+#define VOLUME 150
 #endif
 #ifndef SCREEN_INVERT
 #define SCREEN_INVERT 0
@@ -63,15 +64,44 @@ void readButton() {
   unsigned long held = now - downAt;
   // A press that began before this arrived isn't an answer to it.
   bool forSign = mode == Mode::Sign && signId.length() && downAt >= signAt;
-  if (forSign && signReadable && signSeen && down && held > 120) drawHoldBar(held);
+  if (forSign && signReadable && signSeen && down && held > 120) {
+    drawHoldBar(held);
+    // How a hold feels: a click as you press, a tick each quarter of the way, rising, the LED warming toward
+    // brass, and a bright chirp once it's full: let go now and it signs.
+    static unsigned long ticked = 0;
+    static int step = -1;
+    int now4 = held >= HOLD_SIGN_MS ? 4 : (int)(4 * held / HOLD_SIGN_MS);
+    if (downAt != ticked) {
+      ticked = downAt;
+      step = -1;
+      hushed = true;
+      flushPlayback();  // a hold interrupts whatever it was saying
+    }
+    if (now4 != step) {
+      step = now4;
+      if (step < 4) beep(500 + 150 * step, 35);
+      else {
+        beep(1320, 60);
+        beep(1760, 90);
+      }
+      uint8_t warm = 10 + 12 * step;
+      setLed(warm, warm * 2 / 3, 0);
+    }
+  }
   if (mode == Mode::Sign && !down) turnSignPage(now);
   if (!down && wasDown) {
+    hushed = false;
     if (forSign && held > 30) {
-      // Signed only by a full two-second hold, only if it could be read, and only once every line was shown;
-      // anything less is no.
+      // Signed only by a full two-second hold, only if it could be read, and only once every line was shown. A tap
+      // is no; letting go early is neither, so a hold that slips doesn't throw the payment away.
       JsonDocument answer;
-      if (signReadable && !signSeen && held >= HOLD_SIGN_MS) {
+      if (signReadable && held >= TAP_MS && held < HOLD_SIGN_MS) {
+        logLine("let go early on %s: not signed, not refused", signId.c_str());
+        hint("Hold until the bar is full.");
+        beep(300, 140);
+      } else if (signReadable && !signSeen && held >= HOLD_SIGN_MS) {
         logLine("not signed %s: not every line shown yet", signId.c_str());
+        hint("Wait for every line, then hold.");
       } else if (signReadable && signerOk && held >= HOLD_SIGN_MS) {
         String signature = chipkey::sign(signText);
         if (signature.length()) {
@@ -102,8 +132,24 @@ void readButton() {
 }
 
 // ---- Setup and loop -------------------------------------------------------------------------------------
+/** Why it started. A brownout means the speaker drew more than the USB port gives: turn VOLUME down. */
+const char *startedBy() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: return "power on";
+    case ESP_RST_EXT: return "the reset button";
+    case ESP_RST_SW: return "a restart";
+    case ESP_RST_USB: return "USB (a flash, or the port reset it)";
+    case ESP_RST_BROWNOUT: return "a brownout: the speaker drew more than USB gives, so turn VOLUME down";
+    case ESP_RST_PANIC: return "a crash";
+    case ESP_RST_INT_WDT:
+    case ESP_RST_TASK_WDT:
+    case ESP_RST_WDT: return "a watchdog";
+    default: return "something else";
+  }
+}
+
 void setup() {
-  Serial.setRxBufferSize(8192);
+  Serial.setRxBufferSize(32768);  // room for half a second of PureStrings' voice, and more
   Serial.begin(115200);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   led.begin();
@@ -129,9 +175,10 @@ void setup() {
     delay(200);
   }
   setupScreen();
-  amp.setPins(AMP_BCLK, AMP_LRC, AMP_DIN);
-  ampReady = amp.begin(I2S_MODE_STD, 16000, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO);
+  ampReady = startSpeaker();
+  if (!ampReady) logLine("no speaker: it needs PSRAM (compile with PSRAM=opi) and the amp");
   logLine("PureStrings button: screen wiring %d, speaker %s, free memory %u KB, link %s", tftMap + 1, ampReady ? "on" : "off", ESP.getFreeHeap() / 1024, PURESTRINGS_LINK_USB ? "USB" : "Wi-Fi");
+  logLine("started after %s", startedBy());
   beep(660, 100);
   beep(990, 140);
   startLink();
@@ -143,8 +190,19 @@ void loop() {
   readButton();
   if (replyUntil && millis() > replyUntil) {
     replyUntil = 0;
-    if (mode == Mode::Idle) setLed(0, 0, 0);
+    if (mode == Mode::Idle && !paying) setLed(0, 0, 0);
     redraw = true;
+  }
+  // Signed, waiting for PayPal: the LED breathes blue, for up to half a minute.
+  static unsigned long breathed = 0;
+  if (paying && millis() - payingSince > 30000) {
+    paying = false;
+    setLed(0, 0, 0);
+  }
+  if (paying && millis() - breathed > 30) {
+    breathed = millis();
+    float k = 0.5f + 0.5f * sinf(millis() / 220.0f);
+    setLed(0, (uint8_t)(6 + 18 * k), (uint8_t)(14 + 46 * k));
   }
   if (redraw) draw();
   delay(5);

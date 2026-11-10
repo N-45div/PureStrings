@@ -15,8 +15,8 @@
 // with PureStrings started on PURESTRINGS_HOST=0.0.0.0 and a token; or wss://<your host>/keys/ws when it's hosted.
 #define PURESTRINGS_URL "ws://192.168.1.20:7700/keys/ws"
 
-// How loud its beeps are, 0 (silent) to 100.
-#define VOLUME 60
+// How loud it speaks and beeps: 0 (silent) to 200. Past 100 it's louder than the sound itself.
+#define VOLUME 150
 // Some screens show colours inverted, or look best upside down: 1 to turn either around.
 #define SCREEN_INVERT 0
 #define SCREEN_FLIP 0
