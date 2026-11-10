@@ -100,7 +100,13 @@ export function createApp(options: AppOptions): Hono {
     const config = { mcpServers: { purestrings: { type: "http", url, headers: { Authorization: `Bearer ${token}` } } } };
     return c.json({ agent, token, mcp: { url, config, claudeCode: `claude mcp add --transport http purestrings ${url} --header "Authorization: Bearer ${token}"` } }, 201);
   });
-  app.delete("/api/agents/:id", (c) => (store.removeAgent(c.req.param("id")) ? c.body(null, 204) : bad(c, "There's no such assistant.", 404)));
+  // Taking an assistant back ends its token, and stops every allowance that was for it alone.
+  app.delete("/api/agents/:id", async (c) => {
+    const agent = store.agents().find((one) => one.id === c.req.param("id"));
+    if (!agent || !store.removeAgent(agent.id)) return bad(c, "There's no such assistant.", 404);
+    await purse.stopAllowancesFor(agent.name);
+    return c.body(null, 204);
+  });
 
   // Your keys: a button gets its own token for /keys/ws; a key in a browser is added by its public key.
   app.get("/api/devices", (c) => c.json(store.devices().map((device) => ({ ...device, signer: store.signerForDevice(device.id) }))));
@@ -227,7 +233,10 @@ export function createApp(options: AppOptions): Hono {
       return bad(c, failure(error));
     }
     try {
-      return c.json(allowanceView(await purse.startAllowance(pickShop(shops(), given.shop), key, limits)), 201);
+      // For one assistant alone, when one is named: it has to be one of yours.
+      const by = typeof given.by === "string" && given.by.trim() ? store.agents().find((agent) => agent.name.toLowerCase() === String(given.by).trim().toLowerCase())?.name : null;
+      if (typeof given.by === "string" && given.by.trim() && !by) return bad(c, `There's no assistant called ${given.by.trim()}.`);
+      return c.json(allowanceView(await purse.startAllowance(pickShop(shops(), given.shop), key, { ...limits, by })), 201);
     } catch (error) {
       return bad(c, failure(error), 409);
     }
