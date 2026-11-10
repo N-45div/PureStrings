@@ -9,8 +9,8 @@ services:
     name: purestrings
     runtime: docker
     plan: starter
-    # Close to Nebius Token Factory, where Nemotron's calls go. Render can't change this later.
-    region: frankfurt
+    # Close to PayPal's and OpenAI's APIs. Render can't change this later.
+    region: oregon
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/info
     disk:
@@ -22,9 +22,17 @@ services:
         value: "7700"
       - key: PURESTRINGS_TOKEN
         generateValue: true
-      # Nemotron on Token Factory: allowances from your words, and drafted disputes.
-      - key: NEBIUS_API_KEY
+      # A model for allowances from your words and drafted disputes, and the button's voice: OpenAI's here
+      # (MODEL_KEY is an OpenAI API key). Nemotron on Nebius Token Factory works too: set NEBIUS_API_KEY instead.
+      - key: MODEL_URL
+        value: https://api.openai.com/v1
+      - key: MODEL
+        value: gpt-4.1-mini
+      - key: MODEL_KEY
         sync: false
+      # No USB on a host: a button links from the Key screen in your browser, or over Wi-Fi.
+      - key: PURESTRINGS_USB
+        value: "off"
       # Bean & Leaf, the demo shop at /shop: a PayPal sandbox app with Vault on, the webhook's id
       # (npm run paypal:webhook -- https://<name>.onrender.com/shop/paypal/webhook prints it), and a token for the
       # shop's own pages.
