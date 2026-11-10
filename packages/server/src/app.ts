@@ -29,6 +29,8 @@ export interface AppOptions {
   readonly paypal?: "sandbox" | "live" | null;
   readonly model?: Model | null;
   readonly auditor?: Auditor | null;
+  /** The USB port PureStrings itself links a button on now, if it does. */
+  readonly usb?: () => string | null;
   /** How long shop_buy waits for your key; tests shorten it. */
   readonly mcpWaitMs?: number;
 }
@@ -71,7 +73,7 @@ export function createApp(options: AppOptions): Hono {
   });
 
   app.get("/api/info", (c) =>
-    c.json({ name: "PureStrings", version: options.version, publicUrl: options.publicUrl, token: Boolean(options.token), shop: options.shop ?? null, paypal: options.paypal ?? null, model: options.model?.name ?? null, auditor: Boolean(options.auditor), mcp: `${options.publicUrl}/mcp` }),
+    c.json({ name: "PureStrings", version: options.version, publicUrl: options.publicUrl, token: Boolean(options.token), shop: options.shop ?? null, paypal: options.paypal ?? null, model: options.model?.name ?? null, auditor: Boolean(options.auditor), mcp: `${options.publicUrl}/mcp`, usb: options.usb?.() ?? null }),
   );
 
   app.get("/api/events", (c) =>
