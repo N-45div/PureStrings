@@ -22,3 +22,8 @@ const subscribe = (onChange: () => void) => {
 export function useScreen(): Screen {
   return screenOf(useSyncExternalStore(subscribe, () => window.location.hash));
 }
+
+/** #/welcome: what PureStrings is, the page anyone without its token sees. */
+export function useWelcome(): boolean {
+  return /^#\/?welcome/.test(useSyncExternalStore(subscribe, () => window.location.hash));
+}

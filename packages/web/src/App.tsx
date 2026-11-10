@@ -1,12 +1,13 @@
 import { lazy, type ReactNode, Suspense, useEffect, useState } from "react";
-import { api, ApiError, describeError, readToken, writeToken } from "./api.ts";
+import { api, ApiError, describeError, readToken } from "./api.ts";
 import { startEvents, useStreamStatus } from "./events.ts";
 import { useResource } from "./hooks.ts";
 import { KeyLinkProvider, useKeyLink } from "./link.tsx";
 import { icons, Logo } from "./parts/icons.tsx";
-import { hrefOf, type Screen, SCREENS, useScreen } from "./router.ts";
+import { hrefOf, type Screen, SCREENS, useScreen, useWelcome } from "./router.ts";
 import { AssistantsScreen } from "./screens/AssistantsScreen.tsx";
 import { KeyScreen } from "./screens/KeyScreen.tsx";
+import { Landing } from "./screens/Landing.tsx";
 import { PurseScreen } from "./screens/PurseScreen.tsx";
 import { ShopScreen } from "./screens/ShopScreen.tsx";
 import type { Info } from "./types.ts";
@@ -17,12 +18,16 @@ const LedgerScreen = lazy(async () => ({ default: (await import("./screens/Ledge
 
 const NAMES: Readonly<Record<Screen, string>> = { purse: "Purse", ledger: "Ledger", key: "Key", assistants: "Assistants", shop: "Shop" };
 
-/** PureStrings: asks for your token when it needs one, then the five screens with your key connected throughout. */
+/**
+ * PureStrings: what it is, for anyone without its token (and at #/welcome), then the five screens with your key
+ * connected throughout.
+ */
 export function App() {
   const [info, setInfo] = useState<Info | null>(null);
   const [locked, setLocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opened, setOpened] = useState(0);
+  const welcome = useWelcome();
 
   useEffect(() => {
     void (async () => {
@@ -40,7 +45,7 @@ export function App() {
     })();
   }, [opened]);
 
-  if (locked) return <TokenGate onOpen={() => setOpened((count) => count + 1)} />;
+  if (locked || welcome) return <Landing info={info} locked={locked} onOpen={() => setOpened((count) => count + 1)} />;
   if (!info) return <div className="main">{error ? <div className="error">PureStrings isn't answering: {error}</div> : <span className="muted">Opening PureStrings…</span>}</div>;
   return (
     <KeyLinkProvider>
@@ -102,6 +107,9 @@ function Frame({ info }: { readonly info: Info }) {
           <span className={`pill ${link.connected && link.signer?.ok ? "good" : "wait"}`}>{link.connected && link.signer?.ok ? "Key connected" : "Key not connected"}</span>
           {info.paypal ? <span className="pill info">PayPal {info.paypal}</span> : <span className="pill">No PayPal</span>}
           {info.model ? <span className="pill plain" title="The model that writes allowances and disputes">{info.model}</span> : null}
+          <a className="muted small" href="#/welcome">
+            What PureStrings is
+          </a>
         </div>
       </nav>
       <main className="main">{pages[screen]}</main>
@@ -110,37 +118,6 @@ function Frame({ info }: { readonly info: Info }) {
           {toast}
         </div>
       ) : null}
-    </div>
-  );
-}
-
-/** PureStrings has a token: it's asked for once, and kept in this browser. */
-function TokenGate({ onOpen }: { readonly onOpen: () => void }) {
-  const [token, setToken] = useState("");
-  return (
-    <div className="main" style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
-      <form
-        className="card stack"
-        style={{ maxWidth: 420, width: "100%" }}
-        onSubmit={(event) => {
-          event.preventDefault();
-          writeToken(token.trim());
-          onOpen();
-        }}
-      >
-        <div className="row">
-          <span style={{ width: 40, height: 40, display: "inline-block" }}>
-            <Logo />
-          </span>
-          <h1>PureStrings</h1>
-        </div>
-        <p className="muted">This PureStrings has a token. Enter it once; this browser keeps it.</p>
-        <input className="input" type="password" autoComplete="current-password" placeholder="PURESTRINGS_TOKEN" value={token} onChange={(event) => setToken(event.target.value)} aria-label="Your PureStrings token" />
-        <button type="submit" className="btn primary" disabled={!token.trim()}>
-          Open
-        </button>
-        {readToken() ? <div className="error">That token wasn't right.</div> : null}
-      </form>
     </div>
   );
 }
