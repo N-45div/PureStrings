@@ -72,7 +72,7 @@ if (shop) {
 const websockets = createNodeWebSocket({ app });
 const voice = voiceFromEnv(process.env);
 const hub = new KeyHub(store, purse, { voice });
-keyRoutes(app, { store, hub, version, ...(token ? { token } : {}), upgradeWebSocket: websockets.upgradeWebSocket });
+keyRoutes(app, { store, hub, version, publicUrl, ...(token ? { token } : {}), upgradeWebSocket: websockets.upgradeWebSocket });
 const web = env("PURESTRINGS_WEB") ?? fileURLToPath(new URL("../../web/dist", import.meta.url));
 const built = existsSync(join(web, "index.html"));
 app.use("*", webApp(web));

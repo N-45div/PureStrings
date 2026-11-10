@@ -2,7 +2,7 @@ import { activeAllowances, allowanceUse, keyText, parseSignable, type Purse, typ
 import { type Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { streamSSE } from "hono/streaming";
-import { bearerOf, same } from "./auth.ts";
+import { bearerOf, same, strangerWhy } from "./auth.ts";
 import type { Auditor } from "./auditor.ts";
 import { mcpRoutes } from "./mcp.ts";
 import type { Model } from "./model.ts";
@@ -36,7 +36,7 @@ export interface AppOptions {
 }
 
 const failure = (error: unknown) => (error instanceof Error ? error.message : String(error));
-const bad = (c: Context, message: string, status: 400 | 401 | 404 | 409 | 501 | 502 = 400) => c.json({ error: message }, status);
+const bad = (c: Context, message: string, status: 400 | 401 | 403 | 404 | 409 | 501 | 502 = 400) => c.json({ error: message }, status);
 
 async function body(c: Context): Promise<Record<string, unknown>> {
   try {
@@ -64,6 +64,8 @@ export function createApp(options: AppOptions): Hono {
   const shops = () => knownShops(store, options.shop);
 
   app.use("/api/*", bodyLimit({ maxSize: 100_000, onError: (c) => bad(c, "That's too big.") }), async (c, next) => {
+    const stranger = strangerWhy(options.publicUrl, Boolean(options.token), c.req.header("origin"), c.req.header("host"));
+    if (stranger) return bad(c, stranger, 403);
     // /api/info is open: it holds nothing private, and it's how the app learns to ask for the token.
     if (!options.token || c.req.path === "/api/info") return next();
     // EventSource can't send headers, so the event stream takes the token in the query.

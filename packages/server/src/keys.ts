@@ -1,7 +1,7 @@
 import { amountText, type Change, fingerprint, keyText, parseSignable, type Purse, type Signer, spokenText, type Store } from "@purestrings/core";
 import type { Hono } from "hono";
 import type { UpgradeWebSocket, WSContext } from "hono/ws";
-import { bearerOf, same } from "./auth.ts";
+import { bearerOf, same, strangerWhy } from "./auth.ts";
 import { paymentLine } from "./shops.ts";
 import type { Voice } from "./voice.ts";
 
@@ -267,10 +267,13 @@ export class KeyHub {
 }
 
 /** /keys/ws: a button with its own key token, or the virtual key in your browser with your PureStrings token. */
-export function keyRoutes(app: Hono, options: { readonly store: Store; readonly hub: KeyHub; readonly version: string; readonly token?: string; readonly upgradeWebSocket: UpgradeWebSocket }): void {
+export function keyRoutes(app: Hono, options: { readonly store: Store; readonly hub: KeyHub; readonly version: string; readonly publicUrl: string; readonly token?: string; readonly upgradeWebSocket: UpgradeWebSocket }): void {
   app.get(
     "/keys/ws",
     async (c, next) => {
+      // A page on another site can open a WebSocket here through your browser: it mustn't become one of your keys.
+      const stranger = strangerWhy(options.publicUrl, Boolean(options.token), c.req.header("origin"), c.req.header("host"));
+      if (stranger) return c.json({ error: stranger }, 403);
       const given = bearerOf(c.req.header("authorization")) ?? c.req.query("token") ?? "";
       const device = given ? options.store.deviceByToken(given) : null;
       if (device || !options.token || same(given, options.token)) {

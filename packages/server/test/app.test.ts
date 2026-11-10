@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { Purse, shopClient, Store } from "@purestrings/core";
 import { readCatalog, ShopStore, shopApp } from "@purestrings/shop";
 import { createApp } from "../src/app.ts";
+import { strangerWhy } from "../src/auth.ts";
 import { modelFromEnv } from "../src/model.ts";
 
 /**
@@ -45,6 +46,21 @@ describe("PureStrings' API", () => {
     assert.equal((await call("GET", "/api/agents", undefined, {})).status, 401);
     assert.equal((await call("GET", "/api/agents", undefined, { authorization: "Bearer wrong" })).status, 401);
     assert.equal((await call("GET", "/api/agents")).status, 200);
+  });
+
+  it("answers only its own pages and this machine's, never another site's", async () => {
+    const { call } = setUp();
+    for (const origin of ["https://evil.example", "http://purestrings.test.evil.example", "null"]) {
+      const refused = await call("GET", "/api/agents", undefined, { ...auth, origin });
+      assert.equal(refused.status, 403, origin);
+      assert.match(refused.body.error, /doesn't take calls from pages on/);
+    }
+    for (const origin of ["http://purestrings.test", "http://localhost:5173", "http://127.0.0.1:7700"]) assert.equal((await call("GET", "/api/agents", undefined, { ...auth, origin })).status, 200, origin);
+    // Without a token (this machine only), a name that points here from elsewhere gets nothing either.
+    assert.match(strangerWhy("http://localhost:7700", false, undefined, "rebound.evil.example:7700") ?? "", /its own address, not rebound/);
+    assert.equal(strangerWhy("http://localhost:7700", false, undefined, "localhost:7700"), null);
+    assert.equal(strangerWhy("http://localhost:7700", false, undefined, "[::1]:7700"), null);
+    assert.equal(strangerWhy("https://purestrings.onrender.com", true, undefined, "anything.example"), null, "a token is what counts there");
   });
 
   it("gives each assistant its own token for /mcp, shown once, and takes it back", async () => {
