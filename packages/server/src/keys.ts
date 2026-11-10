@@ -7,6 +7,8 @@ import type { Voice } from "./voice.ts";
 
 /** How much sound goes in one binary message: 0.2 s at 24 kHz, 16-bit. */
 const AUDIO_CHUNK = 9_600;
+/** The first 0.4 s of speech waits for the rest to start coming, so the first words don't stutter. */
+const AUDIO_START = 19_200;
 
 /**
  * Your keys' link to PureStrings: the PureStrings button, or the virtual key in your browser, connects here over a
@@ -99,13 +101,27 @@ export class KeyHub {
     let gone = false;
     const say = (text: string, forId: string) => {
       if (!voice || !sendAudio) return;
+      const out = (pcm: Uint8Array) => {
+        for (let at = 0; at < pcm.length; at += AUDIO_CHUNK) sendAudio(pcm.subarray(at, at + AUDIO_CHUNK));
+      };
       void (async () => {
+        let held: Uint8Array[] | null = [];
+        let heldBytes = 0;
         try {
           for await (const pcm of voice.speak(text)) {
             // Stop once the key has gone, or its screen has moved on from what this was about.
             if (gone || (forId && saying !== forId)) return;
-            for (let at = 0; at < pcm.length; at += AUDIO_CHUNK) sendAudio(pcm.subarray(at, at + AUDIO_CHUNK));
+            if (!held) {
+              out(pcm);
+              continue;
+            }
+            held.push(pcm);
+            heldBytes += pcm.length;
+            if (heldBytes < AUDIO_START) continue;
+            held.forEach(out);
+            held = null;
           }
+          if (held && !gone && !(forId && saying !== forId)) held.forEach(out);
         } catch (error) {
           console.error("[purestrings] voice:", failure(error));
         }

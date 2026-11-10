@@ -85,9 +85,9 @@ function toButtonText(text: string): void {
 const toButton = (message: object): void => toButtonText(JSON.stringify(message));
 
 // The button's voice, from PureStrings: 16-bit PCM at 24 kHz (48 bytes a millisecond). It goes on the cable at
-// speaking pace, at most a second ahead, so the button's USB buffer never has to hold more than that.
+// speaking pace, at most half a second ahead: the button's USB serial drops what doesn't fit its 32 KB buffer.
 const SOUND_PER_MS = 48;
-const SOUND_LEAD = 48_000;
+const SOUND_LEAD = 24_000;
 let sound: Uint8Array[] = [];
 let soundSince = 0;
 let soundSent = 0;
