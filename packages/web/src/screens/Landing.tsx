@@ -195,7 +195,7 @@ export function Landing({ info, locked, onOpen }: { readonly info: Info | null; 
             <p>Your assistant reads a page that tells it to buy a gift card. It asks, and your key shows "$200 gift card". You tap, and nothing is paid.</p>
           </article>
           <article>
-            <span className="pill bad">409 at the shop</span>
+            <span className="pill bad">refused at the shop</span>
             <h3>A cart changed after you signed</h3>
             <p>Swap an item or change the total, and the signature no longer matches. The shop refuses before PayPal is ever called.</p>
           </article>
