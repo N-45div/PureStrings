@@ -276,6 +276,16 @@ export function Landing({ info, locked, onOpen }: { readonly info: Info | null; 
             <dt>Warns</dt>
             <dd>on a shop it has never paid</dd>
           </div>
+          <div>
+            <dt>Locked</dt>
+            <dd>no program can reflash it; you hold it to update it</dd>
+          </div>
+          <div>
+            <dt>Open</dt>
+            <dd>
+              any device can be a key: <a href={`${REPO}/blob/main/docs/key-protocol.md`}>the protocol</a>
+            </dd>
+          </div>
         </dl>
       </section>
 
