@@ -10,6 +10,8 @@ export interface Info {
   readonly model: string | null;
   readonly auditor: boolean;
   readonly mcp: string;
+  /** The USB port PureStrings links a button on itself, when the button is plugged into its machine. */
+  readonly usb?: string | null;
 }
 
 export type SignStatus = "waiting" | "signed" | "paid" | "linked" | "active" | "stopped" | "declined" | "expired" | "failed";

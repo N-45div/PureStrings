@@ -237,7 +237,7 @@ async function connect(chosen: SerialPortLike): Promise<void> {
     void readLoop(reader);
   } catch (error) {
     const said = error instanceof Error ? error.message : String(error);
-    update({ error: /open/i.test(said) ? "Couldn't open the button's port. Is a serial monitor or an upload using it? Close that, then connect again." : `Couldn't connect the button: ${said}` });
+    update({ error: /open/i.test(said) ? "Couldn't open the button's port. PureStrings itself, a serial monitor or an upload may have it. Close that, then connect again." : `Couldn't connect the button: ${said}` });
   }
 }
 

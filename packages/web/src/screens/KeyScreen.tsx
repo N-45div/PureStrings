@@ -208,16 +208,39 @@ const USB_STATE: Record<UsbState, { readonly pill: string; readonly says: string
   live: { pill: "good", says: "Connected over USB" },
 };
 
-/** A button on this computer's USB: this page passes its messages on to PureStrings, so it needs no Wi-Fi. */
+/**
+ * A button on USB. Plugged into the machine PureStrings runs on, PureStrings links it itself; plugged into this
+ * computer instead, this page passes its messages on, so it needs no Wi-Fi.
+ */
 function Usb() {
   const link = useSyncExternalStore(usb.subscribe, usb.snapshot);
+  const [held, setHeld] = useState<string | null>(null);
+  useEffect(() => {
+    const look = () => void api.info().then((info) => setHeld(info.usb ?? null), () => undefined);
+    look();
+    const every = setInterval(look, 3_000);
+    return () => clearInterval(every);
+  }, []);
   const state = USB_STATE[link.state];
+  if (held && link.state === "closed") {
+    return (
+      <div className="card">
+        <div className="card-head">
+          <div>
+            <h2>Button on USB</h2>
+            <p>PureStrings has the button on {held} itself: it shows, says and signs with no page open. Unplug it to use it from another computer.</p>
+          </div>
+          <span className="pill good">Linked by PureStrings</span>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="card">
       <div className="card-head">
         <div>
           <h2>Button on USB</h2>
-          <p>Plug the button in and connect it here. Keep this page open while it's in use; it can be on any screen.</p>
+          <p>Plugged into the computer PureStrings runs on, the button links by itself. Plugged into this one, connect it here and keep this page open.</p>
         </div>
         <span className={`pill ${state.pill}`}>{state.says}</span>
       </div>
