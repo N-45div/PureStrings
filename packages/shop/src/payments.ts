@@ -1,4 +1,5 @@
 import {
+  type Allowance,
   amountText,
   cents,
   decimal,
@@ -135,6 +136,9 @@ export function paymentRoutes(app: Hono, context: ShopContext): void {
     const allowance = payment.allow ? store.allowance(payment.allow) : null;
     if (payment.allow && !allowance) return fail(c, 403, "There's no such allowance here, so nothing was charged.");
     if (allowance && key !== allowance.agent) return fail(c, 401, "Only the key the allowance names can pay under it, so nothing was charged.");
+    // For one assistant alone: only a payment that assistant asked for may use it.
+    const onlyFor = allowance ? (parseSignable(allowance.text) as Allowance).by : undefined;
+    if (onlyFor && payment.by !== onlyFor) return fail(c, 403, `That allowance is for ${onlyFor} only, so nothing was charged.`);
     const customer = store.customer(allowance ? allowance.key : key);
     if (!customer) return fail(c, 401, `This key isn't linked to a PayPal at ${shop.name}. Link it first.`);
     if (!signedBy(text, signature, key)) return fail(c, 401, allowance ? "That isn't the allowance's key's signature of this payment, so nothing was charged." : "That isn't this key's signature of this payment, so nothing was charged.");

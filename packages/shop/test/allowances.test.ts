@@ -98,6 +98,25 @@ describe("an allowance at the shop", () => {
     assert.match((await payment("allow_nothinghere01", [{ sku: "filters", qty: 1 }])).body.error, /no such allowance/);
   });
 
+  it("for one assistant alone, pays only for what that assistant asked", async () => {
+    const { give, allowance, call, agent } = setUp();
+    const allowed = allowance({ id: "allow_000000000005", by: "OpenClaw" });
+    assert.equal((await give(allowed)).status, 201);
+    const asked = async (by?: string) => {
+      const priced = (await call("POST", "/carts", { items: [{ sku: "filters", qty: 1 }] })).body.cart;
+      const paying: Payment = { v: 1, kind: "buy", id: `pay_${Math.random().toString(16).slice(2, 14).padEnd(12, "0")}`, allow: allowed.id, ...(by ? { by } : {}), shop: SHOP, cart: priced.id, items: priced.items, total: priced.total, currency: "USD", expires: signableTime(Date.now() + 600_000) };
+      const text = signableText(paying);
+      return call("POST", "/checkout", { text, signature: agent.sign(text), key: agent.key });
+    };
+    for (const other of ["Hermes", undefined]) {
+      const refused = await asked(other);
+      assert.equal(refused.status, 403);
+      assert.equal(refused.body.error, "That allowance is for OpenClaw only, so nothing was charged.");
+    }
+    // OpenClaw's own goes on to PayPal (none here, so it stops there).
+    assert.equal((await asked("OpenClaw")).status, 503);
+  });
+
   it("stops at once, signed by the key or the key it names, and nothing more is paid under it", async () => {
     const { give, allowance, payment, call, agent, yours } = setUp();
     const allowed = allowance({ id: "allow_000000000003" });
