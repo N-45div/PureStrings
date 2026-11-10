@@ -99,7 +99,10 @@ export class Auditor {
   }
 
   private async check(): Promise<AuditView> {
-    const since = new Date(Date.now() - DAYS * 86_400_000).toISOString();
+    // A charge from before this PureStrings had a key can't have been signed by one of its keys, so it isn't this
+    // PureStrings' to judge (another PureStrings on the same PayPal app made it, say). From then on, every one is.
+    const firstKey = this.store.signers()[0]?.createdAt ?? new Date().toISOString();
+    const since = [new Date(Date.now() - DAYS * 86_400_000).toISOString(), firstKey].sort().at(-1)!;
     const charges: PayPalCharge[] = [];
     let events = false;
     let note: string | null = null;
