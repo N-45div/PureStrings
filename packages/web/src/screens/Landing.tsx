@@ -131,17 +131,17 @@ export function Landing({ info, locked, onOpen }: { readonly info: Info | null; 
 
       <section className="lp-hero">
         <div className="lp-pitch">
-          <span className="lp-kicker">Open source · self-hosted · PayPal{info?.paypal === "sandbox" ? " sandbox" : ""}</span>
+          <span className="lp-kicker">Open source · a key you build · PayPal{info?.paypal === "sandbox" ? " sandbox" : ""}</span>
           <h1>
             Your assistant can shop.
             <br />
             <span>Only your key can pay.</span>
           </h1>
           <p>
-            PureStrings is the payment layer between your AI assistant and your PayPal. OpenClaw, Hermes Agent, Claude Code or any MCP client fills the cart. A key you hold signs that exact cart, and the shop checks the signature before PayPal is charged.
+            PureStrings is the open-source payment layer for the assistants you run yourself, like OpenClaw and Hermes Agent, or any MCP client. Your assistant fills the cart. A key you build and hold signs that exact cart, and the shop checks the signature before PayPal is charged.
           </p>
           <ul className="lp-proof">
-            <li>The key is a button on your desk, or the browser you're in</li>
+            <li>The key is a button you flash yourself, or the browser you're in</li>
             <li>It shows who asked, the shop, each line and the total, and says it aloud</li>
             <li>A prompt injection can fill a cart; it can't hold the button</li>
           </ul>
@@ -254,9 +254,12 @@ export function Landing({ info, locked, onOpen }: { readonly info: Info | null; 
 
       <section className="lp-section lp-hardware">
         <div>
-          <h2>A key you can hold</h2>
+          <h2>A key you build</h2>
           <p>
-            The PureStrings button is an ESP32-S3 with a 1.8" screen, a speaker and one button. It makes its key in its own chip, and the private half never leaves it. Plug it into the computer running PureStrings and it's linked. No Wi-Fi, no app, no driver.
+            The PureStrings button is an off-the-shelf ESP32-S3 board with a 1.8" screen, a speaker and one button, running open firmware you flash yourself. It makes its key in its own chip, and the private half never leaves it. Plug it into the computer running PureStrings and it's linked. No Wi-Fi, no app, no driver.
+          </p>
+          <p>
+            The protocol is open too, so whatever you build can be a key, the way your assistant is something you run yourself.
           </p>
         </div>
         <dl className="lp-facts">
