@@ -101,6 +101,7 @@ void readSignable() {
   }
   if (signKind == "allow") {
     signFor = doc["for"] | "";
+    signBy = doc["by"] | "";
     signEach = doc["each"] | "";
     signPer = doc["per"] | "";
     long each = centsOf(signEach), total = centsOf(signTotal);

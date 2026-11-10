@@ -111,7 +111,8 @@ void drawSign() {
     small(60, (signCurrency == "USD" ? "$" + signTotal : signTotal + " " + signCurrency) + " a " + signPer, BRASS);
     small(74, "at " + ascii(signShop), INK);
     shopId(84);
-    small(98, "for " + ascii(signFor), INK, 2);
+    small(98, "for " + ascii(signFor), INK, signBy.length() ? 1 : 2);
+    if (signBy.length()) small(108, ascii(signBy) + " only", WARN);
     small(120, "until " + signUntil, DIM);
   } else {
     // The total, big; then who's paid (NEW when this key hasn't paid them before), then each line.
