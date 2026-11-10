@@ -1,0 +1,336 @@
+/* The landing page: what PureStrings is, with the button drawn in its own screen's colours (from the firmware). */
+
+.lp {
+  --lp-bg: #101429;
+  --lp-ink: #eeefff;
+  --lp-muted: #adaed6;
+  --lp-brass: #ffbe21;
+  --lp-mint: #6be7ad;
+  --lp-track: #292d52;
+  --lp-red: #ff4d5a;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px 40px;
+}
+
+.lp a {
+  color: inherit;
+}
+
+.lp-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 0;
+  flex-wrap: wrap;
+}
+
+.lp-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.lp-logo {
+  width: 30px;
+  height: 30px;
+  display: inline-block;
+}
+
+.lp-top nav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+
+.lp-top nav a:not(.btn) {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.lp-top nav a:not(.btn):hover {
+  color: var(--ink);
+}
+
+/* The hero: the pitch, and the button paying. */
+
+.lp-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 48px;
+  align-items: center;
+  padding: 40px 0 64px;
+}
+
+.lp-kicker {
+  display: inline-block;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brass-ink);
+  background: var(--brass-soft);
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+
+.lp-hero h1 {
+  font-size: clamp(32px, 4.3vw, 52px);
+  line-height: 1.04;
+  margin: 18px 0 18px;
+  letter-spacing: -0.02em;
+}
+
+.lp-hero h1 span {
+  color: var(--brass);
+}
+
+.lp-pitch > p {
+  font-size: 17.5px;
+  color: var(--muted);
+  max-width: 34em;
+  margin: 0 0 18px;
+}
+
+.lp-proof {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 26px;
+  display: grid;
+  gap: 8px;
+}
+
+.lp-proof li {
+  padding-left: 26px;
+  position: relative;
+}
+
+.lp-proof li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0.55em;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--brass);
+}
+
+.lp-cta {
+  display: grid;
+  gap: 8px;
+  max-width: 460px;
+}
+
+.lp-cta.row {
+  display: flex;
+}
+
+.lp-open {
+  display: flex;
+  gap: 8px;
+}
+
+.lp-open .input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The sections below the hero. */
+
+.lp-section {
+  padding: 56px 0;
+  border-top: 1px solid var(--line);
+}
+
+.lp-section h2 {
+  font-size: 30px;
+  margin-bottom: 22px;
+}
+
+.lp-steps {
+  list-style: none;
+  counter-reset: lp;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.lp-steps li {
+  counter-increment: lp;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+.lp-steps li::before {
+  content: counter(lp);
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--brass-soft);
+  color: var(--brass-ink);
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.lp-steps b,
+.lp-cards h3 {
+  display: block;
+  font-family: var(--serif);
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.lp-steps p,
+.lp-cards p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14.5px;
+}
+
+.lp-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.lp-cards article {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: var(--shadow);
+}
+
+.lp-cards .pill {
+  margin-bottom: 12px;
+}
+
+.lp-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
+}
+
+.lp-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.lp-list li {
+  padding: 12px 14px;
+  border-left: 3px solid var(--brass);
+  background: var(--card);
+  border-radius: 0 10px 10px 0;
+  color: var(--muted);
+}
+
+.lp-list b {
+  color: var(--ink);
+}
+
+.lp-hardware {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 40px;
+  align-items: center;
+}
+
+.lp-hardware p {
+  color: var(--muted);
+  font-size: 16.5px;
+}
+
+.lp-facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.lp-facts div {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.lp-facts dt {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brass-ink);
+}
+
+.lp-facts dd {
+  margin: 4px 0 0;
+}
+
+.lp-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+/* Phones and narrow windows. */
+
+@media (max-width: 900px) {
+  .lp-hero,
+  .lp-split,
+  .lp-hardware {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lp-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .lp {
+    padding: 0 16px 32px;
+  }
+
+  .lp-top nav a:not(.btn) {
+    display: none;
+  }
+
+  .lp-steps,
+  .lp-cards,
+  .lp-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lp-open {
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp *,
+  .lp *::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}
