@@ -169,6 +169,16 @@ describe("an allowance", () => {
     assert.equal(signableLine(allowance), "Let PureStrings spend up to $20.00 a time and $50.00 a week at Bean & Leaf, for Groceries, until 2026-12-04");
   });
 
+  it("can be for one assistant alone, named in what your key signs", () => {
+    const forOne: Allowance = { ...allowance, by: "OpenClaw" };
+    const text = signableText(forOne);
+    assert.match(text, /"for":"Groceries","by":"OpenClaw","agent":/);
+    assert.deepEqual(parseSignable(text), forOne);
+    assert.equal(signableLine(forOne), "Let PureStrings, for OpenClaw only, spend up to $20.00 a time and $50.00 a week at Bean & Leaf, for Groceries, until 2026-12-04");
+    assert.throws(() => parseSignable(text.replace('"OpenClaw"', '"Open‮Claw"')), /can't show plainly/);
+    assert.throws(() => parseSignable(text.replace('"for":"Groceries","by":"OpenClaw"', '"by":"OpenClaw","for":"Groceries"')), /in this order|order/i, "written one way only");
+  });
+
   it("refuses limits that don't make sense, or a key that isn't one", () => {
     const text = (change: Partial<Record<keyof Allowance, unknown>>) => signableText({ ...allowance, ...change } as Allowance);
     assert.throws(() => parseSignable(text({ each: "60.00" })), /can't be allowed more than all of them together/);

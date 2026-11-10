@@ -79,6 +79,11 @@ export interface Allowance {
   readonly shop: Payee;
   /** What it's for, in a few words ("Groceries"): shown on the key. The limits are what count. */
   readonly for: string;
+  /**
+   * The one assistant it's for, by name ("OpenClaw"), when it's for one: only payments that assistant asked for may
+   * use it, and taking that assistant back stops it. Without it, any of your assistants' payments may.
+   */
+  readonly by?: string;
   /** PureStrings' own public key (raw P-256, base64url): only its signature counts for payments under this. */
   readonly agent: string;
   /** The most one payment may be. */
@@ -117,7 +122,7 @@ export function signableText(signable: Signable): string {
   if (signable.kind === "link") return JSON.stringify({ v: 1, kind: "link", id: signable.id, shop, expires: signable.expires });
   if (signable.kind === "allow") {
     const { id, agent, each, total, per, currency, expires } = signable;
-    return JSON.stringify({ v: 1, kind: "allow", id, shop, for: signable.for, agent, each, total, per, currency, expires });
+    return JSON.stringify({ v: 1, kind: "allow", id, shop, for: signable.for, ...(signable.by ? { by: signable.by } : {}), agent, each, total, per, currency, expires });
   }
   return JSON.stringify({
     v: 1,
@@ -167,11 +172,11 @@ export function parseSignable(text: string): Signable {
   const kind = (value as { kind?: unknown } | null)?.kind;
   if (kind !== "buy" && kind !== "link" && kind !== "allow") throw new Error('The text to sign is neither a payment ("buy"), a link ("link") nor an allowance ("allow").');
   const under = kind === "buy" && typeof value === "object" && value !== null && "allow" in value;
-  const asked = kind === "buy" && typeof value === "object" && value !== null && "by" in value;
+  const asked = (kind === "buy" || kind === "allow") && typeof value === "object" && value !== null && "by" in value;
   const keys = {
     buy: ["v", "kind", "id", ...(under ? ["allow"] : []), ...(asked ? ["by"] : []), "shop", "cart", "items", "total", "currency", "expires"],
     link: ["v", "kind", "id", "shop", "expires"],
-    allow: ["v", "kind", "id", "shop", "for", "agent", "each", "total", "per", "currency", "expires"],
+    allow: ["v", "kind", "id", "shop", "for", ...(asked ? ["by"] : []), "agent", "each", "total", "per", "currency", "expires"],
   }[kind];
   const record = exactKeys(value, keys, "The text to sign");
   if (record.v !== 1) throw new Error("The text to sign is a version PureStrings doesn't know.");
@@ -200,7 +205,8 @@ export function parseSignable(text: string): Signable {
     if (total === null || total === 0 || decimal(total) !== record.total) throw new Error("The allowance's most in all should be written like 50.00.");
     if (each > total) throw new Error("One payment can't be allowed more than all of them together.");
     if (typeof record.per !== "string" || !(record.per in PERIODS)) throw new Error("The allowance's limit runs per day, week or month.");
-    signable = { v: 1, kind, id: record.id, shop, for: plainName(record.for, "What the allowance is for", 40), agent, each: record.each as string, total: record.total as string, per: record.per as Period, currency: record.currency, expires: record.expires };
+    const by = asked ? plainName(record.by, "The assistant the allowance is for", 40) : null;
+    signable = { v: 1, kind, id: record.id, shop, for: plainName(record.for, "What the allowance is for", 40), ...(by ? { by } : {}), agent, each: record.each as string, total: record.total as string, per: record.per as Period, currency: record.currency, expires: record.expires };
   } else {
     if (typeof record.cart !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(record.cart)) throw new Error("The payment needs the shop's id for its cart.");
     if (typeof record.currency !== "string" || !CURRENCY.test(record.currency)) throw new Error("The payment's currency should be a three-letter code, like USD.");
@@ -288,7 +294,7 @@ export function amountText(value: string, currency: string): string {
 /** What a signable asks, in one line: "Pay $32.50 to Bean & Leaf: 2× House blend beans, 1 lb; 1× Paper filters". */
 export function signableLine(signable: Signable): string {
   if (signable.kind === "link") return `Link your PayPal at ${signable.shop.name} to this key`;
-  if (signable.kind === "allow") return `Let PureStrings spend up to ${amountText(signable.each, signable.currency)} a time and ${amountText(signable.total, signable.currency)} a ${signable.per} at ${signable.shop.name}, for ${signable.for}, until ${signable.expires.slice(0, 10)}`;
+  if (signable.kind === "allow") return `Let ${signable.by ? `PureStrings, for ${signable.by} only,` : "PureStrings"} spend up to ${amountText(signable.each, signable.currency)} a time and ${amountText(signable.total, signable.currency)} a ${signable.per} at ${signable.shop.name}, for ${signable.for}, until ${signable.expires.slice(0, 10)}`;
   const items = signable.items.map((item) => `${item.qty}× ${item.name}`).join("; ");
   if (signable.by) return `${signable.by} asks to pay ${amountText(signable.total, signable.currency)} to ${signable.shop.name}: ${items}`;
   return `Pay ${amountText(signable.total, signable.currency)} to ${signable.shop.name}: ${items}`;

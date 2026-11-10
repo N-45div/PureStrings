@@ -42,7 +42,8 @@ export function spokenText(signable: Signable, fresh: boolean): string {
   const warning = fresh ? ` Careful: ${shop} is a shop this key hasn't signed for before.` : "";
   if (signable.kind === "link") return `Link your PayPal at ${shop} to this key.${warning} Hold to link, or tap to refuse.`;
   if (signable.kind === "allow") {
-    return `An allowance for ${signable.for} at ${shop}: PureStrings may spend up to ${amountWords(signable.each, signable.currency)} a time, and ${amountWords(signable.total, signable.currency)} a ${signable.per}, until ${dayWords(signable.expires)}.${warning} Hold to agree, or tap to refuse.`;
+    const only = signable.by ? `, for ${signable.by} only` : "";
+    return `An allowance for ${signable.for} at ${shop}${only}: PureStrings may spend up to ${amountWords(signable.each, signable.currency)} a time, and ${amountWords(signable.total, signable.currency)} a ${signable.per}, until ${dayWords(signable.expires)}.${warning} Hold to agree, or tap to refuse.`;
   }
   const count = signable.items.reduce((sum, item) => sum + item.qty, 0);
   const said = signable.items.slice(0, 3).map((item) => `${item.qty} ${item.name}`);

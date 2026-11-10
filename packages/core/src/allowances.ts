@@ -62,13 +62,14 @@ export function activeAllowances(store: Store, now = Date.now()): ActiveAllowanc
 }
 
 /**
- * The allowance a cart at this shop fits, if one does: the shop's own, in its currency, with the total no more
- * than its each, and no more than what's left of its total. The one with the most left goes first.
+ * The allowance a cart at this shop fits, if one does: the shop's own, in its currency, for any assistant or the one
+ * that asked (`by`), with the total no more than its each, and no more than what's left of its total. The one with
+ * the most left goes first.
  */
-export function allowanceFor(store: Store, shopUrl: string, total: string, currency: string, now = Date.now()): ActiveAllowance | null {
+export function allowanceFor(store: Store, shopUrl: string, total: string, currency: string, now = Date.now(), by: string | null = null): ActiveAllowance | null {
   const amount = cents(total);
   if (amount === null) return null;
-  const fits = activeAllowances(store, now).filter(({ request, allowance, spent }) => request.shop === shopUrl && allowance.currency === currency && amount <= (cents(allowance.each) ?? 0) && spent + amount <= (cents(allowance.total) ?? 0));
+  const fits = activeAllowances(store, now).filter(({ request, allowance, spent }) => request.shop === shopUrl && (!allowance.by || allowance.by === by) && allowance.currency === currency && amount <= (cents(allowance.each) ?? 0) && spent + amount <= (cents(allowance.total) ?? 0));
   return fits.sort((a, b) => (cents(b.allowance.total) ?? 0) - b.spent - ((cents(a.allowance.total) ?? 0) - a.spent))[0] ?? null;
 }
 

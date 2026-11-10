@@ -82,7 +82,7 @@ export class Purse {
     } catch (error) {
       throw new Error(`${cart.shop.name}'s cart can't be signed: ${failure(error)}`);
     }
-    const fits = allowanceFor(this.store, shop.url, payment.total, payment.currency, this.now());
+    const fits = allowanceFor(this.store, shop.url, payment.total, payment.currency, this.now(), agent ?? null);
     if (fits) {
       const under: Payment = { ...payment, id: signableId("pay"), allow: fits.allowance.id };
       const underText = signableText(under);
@@ -265,7 +265,7 @@ export class Purse {
    * Starts an allowance at a shop for one of your keys: the text it signs, with the limits and PureStrings' own key.
    * Once your key signs it, the shop is given it, and from then on carts there that fit it are paid without asking.
    */
-  async startAllowance(shopUrl: string, key: string, limits: { readonly for: string; readonly each: string; readonly total: string; readonly per: Period; readonly days: number }): Promise<SignRequest> {
+  async startAllowance(shopUrl: string, key: string, limits: { readonly for: string; readonly by?: string | null; readonly each: string; readonly total: string; readonly per: Period; readonly days: number }): Promise<SignRequest> {
     const signer = this.yours(key);
     const each = cents(limits.each);
     const total = cents(limits.total);
@@ -279,6 +279,7 @@ export class Purse {
       id: signableId("allow"),
       shop: about.shop,
       for: limits.for.trim().slice(0, 40),
+      ...(limits.by?.trim() ? { by: limits.by.trim() } : {}),
       agent: agentKey(this.store).key,
       each: decimal(each),
       total: decimal(total),
@@ -321,5 +322,21 @@ export class Purse {
       throw new Error(`PureStrings won't pay under it any more, but the shop didn't hear so: ${failure(error)} Stop it again to tell the shop.`);
     }
     return this.store.signRequest(id)!;
+  }
+
+  /** Stops every allowance that's for this assistant alone: when it's taken back, nothing more is paid for it. */
+  async stopAllowancesFor(agent: string): Promise<string[]> {
+    const stopped: string[] = [];
+    for (const request of this.store.signRequests(200, "allow")) {
+      if (request.status !== "active" && request.status !== "waiting") continue;
+      if ((parseSignable(request.text) as Allowance).by !== agent) continue;
+      try {
+        await this.stopAllowance(request.id);
+      } catch {
+        // Stopped here; the shop hears when it's stopped again.
+      }
+      stopped.push(request.id);
+    }
+    return stopped;
   }
 }
