@@ -117,7 +117,7 @@ export function LedgerScreen({ info }: { readonly info: Info | null }) {
       {
         field: "agent",
         headerName: "Asked by",
-        width: 130,
+        width: 170,
         cellRenderer: (p: ICellRendererParams<Row>) =>
           p.node.rowPinned ? null : p.value ? (
             <span className="agent">
