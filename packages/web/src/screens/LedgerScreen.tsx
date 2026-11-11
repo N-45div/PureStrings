@@ -43,6 +43,13 @@ interface Row {
   readonly error: string | null;
 }
 
+/** What the auditor column says before the auditor has a word on a payment: a refused one will never be charged. */
+function unchecked(status: Row["status"] | undefined): string {
+  if (status === "paid") return "not checked yet";
+  if (status === "waiting" || status === "signed") return "not charged yet";
+  return "never charged";
+}
+
 type Show = "all" | "paid" | "waiting" | "flagged";
 
 function rowsOf(payments: readonly SignView[], findings: readonly Finding[], keyNames: ReadonlyMap<string, string>): Row[] {
@@ -144,7 +151,7 @@ export function LedgerScreen({ info }: { readonly info: Info | null }) {
         headerName: "Auditor",
         width: 165,
         valueGetter: (p) => p.data?.finding?.verdict ?? "",
-        cellRenderer: (p: ICellRendererParams<Row>) => (p.data?.finding ? <VerdictPill verdict={p.data.finding.verdict} flagged={p.data.finding.flagged} /> : p.node.rowPinned ? null : <span className="muted small">not charged yet</span>),
+        cellRenderer: (p: ICellRendererParams<Row>) => (p.data?.finding ? <VerdictPill verdict={p.data.finding.verdict} flagged={p.data.finding.flagged} /> : p.node.rowPinned ? null : <span className="muted small">{unchecked(p.data?.status)}</span>),
       },
       { field: "paypal", headerName: "PayPal", width: 160, cellClass: "mono" },
     ],
@@ -187,7 +194,7 @@ export function LedgerScreen({ info }: { readonly info: Info | null }) {
             getRowId={(p) => p.data.id}
             quickFilterText={search}
             rowClassRules={rowClassRules}
-            pinnedBottomRowData={[{ id: "total", at: "", agent: null, shop: "", what: `${shown.filter((row) => row.status === "paid").length} payments`, total: paidTotal, currency: "USD", status: "paid", signedBy: "", paypal: "", finding: null, error: null }]}
+            pinnedBottomRowData={show === "flagged" ? [] : [{ id: "total", at: "", agent: null, shop: "", what: `${shown.filter((row) => row.status === "paid").length} payments`, total: paidTotal, currency: "USD", status: "paid", signedBy: "", paypal: "", finding: null, error: null }]}
             tooltipShowDelay={300}
             animateRows
             onGridReady={(event) => {
