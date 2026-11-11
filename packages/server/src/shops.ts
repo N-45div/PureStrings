@@ -64,6 +64,23 @@ export function pickShop(shops: readonly string[], given: unknown): string {
   return found;
 }
 
+/**
+ * The shop asked for by its address, or by its name ("Bean & Leaf"), which is what assistants often send. A name only
+ * matches one of the shops you have, as each one names itself; anything else is refused as pickShop refuses it.
+ */
+export async function findShop(purse: Purse, shops: readonly string[], given: unknown): Promise<string> {
+  try {
+    return pickShop(shops, given);
+  } catch (refused) {
+    const name = typeof given === "string" ? given.trim().toLowerCase() : "";
+    if (!name) throw refused;
+    const named = await Promise.all(shops.map(async (url) => ((await purse.shop(url).about().catch(() => null))?.shop.name.trim().toLowerCase() === name ? url : null)));
+    const found = named.filter((url): url is string => url !== null);
+    if (found.length !== 1) throw refused;
+    return found[0]!;
+  }
+}
+
 export interface Found {
   readonly url: string;
   readonly shop: Payee;
@@ -72,7 +89,7 @@ export interface Found {
 
 /** What a shop (or each shop you have, up to three, when none is named) sells that fits what's asked. */
 export async function searchShops(purse: Purse, shops: readonly string[], query: string, given?: unknown): Promise<Found[]> {
-  const urls = typeof given === "string" && given.trim() ? [pickShop(shops, given)] : shops.slice(0, 3);
+  const urls = typeof given === "string" && given.trim() ? [await findShop(purse, shops, given)] : shops.slice(0, 3);
   if (!urls.length) pickShop(shops, given);
   return Promise.all(urls.map(async (url) => ({ url, ...(await purse.shop(url).search(query.slice(0, 500), 8)) })));
 }

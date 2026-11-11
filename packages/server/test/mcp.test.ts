@@ -70,7 +70,8 @@ describe("PureStrings over MCP", () => {
     assert.equal(opened.body.result.serverInfo.name, "purestrings");
     const listed = await rpc("tools/list", {});
     assert.deepEqual(listed.body.result.tools.map((tool: { name: string }) => tool.name), ["shop_search", "shop_buy", "payment_status", "list_payments", "list_allowances"]);
-    assert.deepEqual(listed.body.result.tools[1].inputSchema.properties.shop.enum, [SHOP_URL]);
+    // One shop: nothing to choose, so no shop field for an assistant to fill with a guess.
+    assert.deepEqual(Object.keys(listed.body.result.tools[1].inputSchema.properties), ["items"]);
   });
 
   it("speaks the current revision too, where each request says its version", async () => {
@@ -89,6 +90,19 @@ describe("PureStrings over MCP", () => {
     const elsewhere = await tool("shop_buy", { items: [{ sku: "mug" }], shop: "https://bean-and-leaf.example/shop" });
     assert.ok(elsewhere.error);
     assert.match(elsewhere.said, /only buys at shops its owner added/);
+  });
+
+  it("takes a shop you added by its name too, and no other name", async () => {
+    const { tool, waiting, purse } = setUp();
+    assert.match((await tool("shop_search", { query: "chai", shop: "bean & leaf" })).said, /Bean & Leaf \(http:\/\/localhost:7700\/shop\):\n- tea-chai: /);
+    const asking = tool("shop_buy", { items: [{ sku: "tea-chai" }], shop: "Bean & Leaf" });
+    const request = await waiting();
+    assert.equal(request.shop, SHOP_URL);
+    purse.decline(request.id);
+    assert.match((await asking).said, /said no/);
+    const other = await tool("shop_buy", { items: [{ sku: "mug" }], shop: "Beans & Leaves" });
+    assert.ok(other.error);
+    assert.match(other.said, /only buys at shops its owner added/);
   });
 
   it("puts a cart in front of your key with the assistant's name, and takes your no", async () => {
