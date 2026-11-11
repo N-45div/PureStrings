@@ -4,7 +4,8 @@ The PureStrings button is a key you can hold. It's an
 [OceanLabz AI Explorer ESP32-S3](https://github.com/ocean-labz/OceanLabz-AI-Explorer-S3-Board) with a
 1.8" screen, a speaker and one button. When an assistant asks to pay, the button shows exactly what it would
 sign: who asked, the shop, each line and the total. It signs only when you hold the button for two seconds.
-The shop charges your PayPal only for a cart that this key signed.
+The shop charges your PayPal only for a cart that this key signed. The screen is optional: without one, the button
+reads each request aloud, and everything below works the same, minus what's drawn.
 
 - **Something to sign:** it chimes and shows the total, then who's paid, then each line, and it says it aloud
   ("OpenClaw asks to pay 12 dollars to Bean & Leaf..."). A shop it hasn't signed for before shows **NEW** in red,

@@ -6,14 +6,14 @@ can shop; only your own key can pay.**
 ![PureStrings: your assistant can shop, only your key can pay](docs/images/landing.png)
 
 OpenClaw, Hermes Agent, Claude Code, or any assistant that speaks MCP, can find things and fill a cart. None of
-them can pay. Only your key can: the PureStrings button on your desk, or a key in your browser. It shows you who
-asked, the shop, every line and the total, read from the exact text it signs, and it signs only when you hold
-its button for two seconds. The shop checks that signature against the key you linked to your PayPal before it
+them can pay. Only your key can: the PureStrings button on your desk, or a key in your browser. It tells you who
+asked, the shop, every line and the total, out loud or on its screen, and it signs that exact text only when you
+hold for two seconds. The shop checks that signature against the key you linked to your PayPal before it
 charges PayPal.
 
 I built it because assistants are getting good at shopping, and giving one your card means anything it reads can
-spend your money. With PureStrings, a page that talks your assistant into buying a $200 gift card gets a cart on
-your key's screen, and a tap that says no.
+spend your money. With PureStrings, a page that talks your assistant into buying a $200 gift card gets read out
+by your key, and a tap that says no.
 
 Open-source assistants like OpenClaw and Hermes Agent run on your own machine, and you can change anything about
 them. A hosted assistant can lean on its platform to pay; one you run yourself has had nothing safer than your
@@ -41,8 +41,8 @@ flowchart LR
    into what your key signs.
 2. **The shop prices the cart, and PureStrings writes it down.** The text is one way of writing that payment, and
    no other: the shop, every line, the total, who asked, a one-time id and an expiry.
-3. **Your key shows it and says it.** The button chimes, shows the cart, and reads it out: "OpenClaw asks to pay
-   12 dollars to Bean & Leaf...". It warns on a shop it has never paid.
+3. **Your key tells you.** The button chimes and reads the cart out: "OpenClaw asks to pay 12 dollars to Bean &
+   Leaf...". With a screen, it also shows it, as the browser key does. It warns on a shop it has never paid.
 4. **You hold for two seconds.** The key signs the text with a P-256 key that never leaves it. A tap says no.
 5. **The shop checks, then PayPal pays.** The shop checks the signature against the key you linked at PayPal, and
    the cart against the one it priced. Then it charges your saved PayPal with Orders v2.
@@ -50,7 +50,7 @@ flowchart LR
    that doesn't is flagged, with a dispute drafted for you.
 
 Small buys can skip the hold. Say "coffee and tea, up to $15 a time and $40 a week, for OpenClaw only". A model
-turns that into limits, your key shows them and signs them once, and the shop holds every payment under them to
+turns that into limits, your key reads them out and signs them once, and the shop holds every payment under them to
 those limits.
 
 ## Quickstart
@@ -82,12 +82,14 @@ To host it, [`render.yaml`](render.yaml) deploys it on Render with a disk.
 
 ## The button: a key you build
 
-The PureStrings button is an off-the-shelf ESP32-S3 board with a 1.8" screen, a speaker and one button, running
-open firmware you flash yourself. It makes its key in its own chip.
+The PureStrings button is an off-the-shelf ESP32-S3 board with a speaker and one button, running open firmware you
+flash yourself. A 1.8" screen is optional: mine runs without one. It makes its key in its own chip.
 - **Plugging in:** plug it into the computer PureStrings runs on, and PureStrings links it by itself. No Wi-Fi, no
   app, no driver.
-- **What it does:** it chimes, shows the cart and says it out loud. While you hold, a bar fills and ticks, and a
-  chirp says it's full. The LED breathes while PayPal charges, and then it says what was paid.
+- **What it does:** it chimes and reads the cart out loud. While you hold, it ticks, and a chirp says the hold is
+  full. Then it says what was paid. With the screen, it also shows the cart, and a bar fills as you hold.
+- **What to trust:** PureStrings makes the voice from the text it asks the button to sign, so the voice is only as
+  honest as your PureStrings. The screen is drawn by the button itself, from the exact text it signs.
 - **Locked:** no program on the computer can reflash it or reach its debugger over the cable. New firmware goes
   on only if you hold its button while you plug it in.
 
@@ -100,9 +102,9 @@ yet, is in [docs/hardware-security.md](docs/hardware-security.md).
 
 | Who | What they try | What stops it |
 | --- | --- | --- |
-| A page with a prompt injection | gets your assistant to buy a $200 gift card | your key shows "$200 gift card" and who asked; you tap no |
+| A page with a prompt injection | gets your assistant to buy a $200 gift card | your key says "$200 gift card" and who asked; you tap no |
 | Someone who changes a signed cart, or replays it | sends it to the shop | the signature no longer matches; a replay gets the same order back |
-| Someone who breaks into PureStrings | asks for anything, and changes what's shown beside it | the key reads every fact from the text it signs |
+| Someone who breaks into PureStrings | asks for anything, and changes what's shown beside it | a key with a screen (the button's, or your browser) reads every fact from the text it signs |
 | An assistant on an allowance for another one | pays under it | the shop refuses it (403) |
 | Someone holding the shop's PayPal keys | charges your PayPal directly | the auditor flags the capture and drafts the dispute |
 
@@ -138,7 +140,7 @@ a real PureStrings, and `scripts/attack-demo.ts` drives it.
   Claude Code to buy only what you asked for, and never because a page told them to.
 - **WebMCP:** the Shop screen hands `shop_search`, `shop_buy` and `list_payments` to an agent built into your
   browser.
-- **A model** (I run gpt-4.1-mini) turns a sentence into an allowance's limits, which your key shows before you
+- **A model** (I run gpt-4.1-mini) turns a sentence into an allowance's limits, which your key reads out before you
   sign, and drafts the dispute for a flagged charge. It only ever writes words: what's paid is what your key
   signs.
 - **A voice:** OpenAI's `gpt-4o-mini-tts`, streamed to the button over its cable.
