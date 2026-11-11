@@ -256,6 +256,10 @@
   font-size: 16.5px;
 }
 
+.lp-hardware p + p {
+  margin-top: 12px;
+}
+
 .lp-facts {
   margin: 0;
   display: grid;

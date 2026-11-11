@@ -207,7 +207,7 @@ export function Landing({ info, locked, onOpen }: { readonly info: Info | null; 
           <article>
             <span className="pill good">within your limits</span>
             <h3>Small buys, without a hold</h3>
-            <p>Say "up to $15 a time, $60 a month at Bean &amp; Leaf". The model writes it as an allowance, your key signs it once, and the shop holds payments to it.</p>
+            <p>Say "coffee and tea, up to $15 a time and $40 a week, for OpenClaw only". The model writes it as an allowance, your key signs it once, and the shop holds payments to it.</p>
           </article>
         </div>
       </section>
