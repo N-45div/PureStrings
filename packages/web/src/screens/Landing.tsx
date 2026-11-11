@@ -142,7 +142,7 @@ export function Landing({ info, locked, onOpen }: { readonly info: Info | null; 
           </p>
           <ul className="lp-proof">
             <li>The key is a button you flash yourself, or the browser you're in</li>
-            <li>It shows who asked, the shop, each line and the total, and says it aloud</li>
+            <li>It tells you who asked, the shop, each line and the total, out loud or on its screen</li>
             <li>A prompt injection can fill a cart; it can't hold the button</li>
           </ul>
           {locked ? (
@@ -172,8 +172,8 @@ export function Landing({ info, locked, onOpen }: { readonly info: Info | null; 
             <p>It searches the shop and calls shop_buy over MCP with its own token. Its name goes into what your key signs.</p>
           </li>
           <li>
-            <b>Your key shows it</b>
-            <p>The exact text it would sign: who asked, the shop, every line and the total. A shop it has never paid shows in red.</p>
+            <b>Your key tells you</b>
+            <p>From the exact text it would sign: who asked, the shop, every line and the total, read aloud or shown. It warns on a shop it has never paid.</p>
           </li>
           <li>
             <b>You hold for two seconds</b>
@@ -192,7 +192,7 @@ export function Landing({ info, locked, onOpen }: { readonly info: Info | null; 
           <article>
             <span className="pill bad">refused by you</span>
             <h3>A $200 gift card from a poisoned page</h3>
-            <p>Your assistant reads a page that tells it to buy a gift card. It asks, and your key shows "$200 gift card". You tap, and nothing is paid.</p>
+            <p>Your assistant reads a page that tells it to buy a gift card. It asks, and your key says "$200 gift card". You tap, and nothing is paid.</p>
           </article>
           <article>
             <span className="pill bad">refused at the shop</span>
@@ -246,7 +246,7 @@ export function Landing({ info, locked, onOpen }: { readonly info: Info | null; 
               <b>Disputes drafted</b> for any charge the auditor flags.
             </li>
             <li>
-              <b>The button speaks</b>: OpenAI's voice says each payment out loud, but the screen is still what you trust.
+              <b>The button speaks</b>: OpenAI's voice says each payment out loud. The optional screen is drawn by the button itself, from the text it signs.
             </li>
           </ul>
         </div>
@@ -256,7 +256,7 @@ export function Landing({ info, locked, onOpen }: { readonly info: Info | null; 
         <div>
           <h2>A key you build</h2>
           <p>
-            The PureStrings button is an off-the-shelf ESP32-S3 board with a 1.8" screen, a speaker and one button, running open firmware you flash yourself. It makes its key in its own chip, and the private half never leaves it. Plug it into the computer running PureStrings and it's linked. No Wi-Fi, no app, no driver.
+            The PureStrings button is an off-the-shelf ESP32-S3 board with a speaker and one button (a 1.8" screen is optional), running open firmware you flash yourself. It makes its key in its own chip, and the private half never leaves it. Plug it into the computer running PureStrings and it's linked. No Wi-Fi, no app, no driver.
           </p>
           <p>
             The protocol is open too, so whatever you build can be a key, the way your assistant is something you run yourself.
@@ -268,8 +268,8 @@ export function Landing({ info, locked, onOpen }: { readonly info: Info | null; 
             <dd>ECDSA P-256 over the exact cart</dd>
           </div>
           <div>
-            <dt>Shows</dt>
-            <dd>who asked, the shop, every line, the total</dd>
+            <dt>Says</dt>
+            <dd>who asked, the shop, every line, the total (and shows them, with a screen)</dd>
           </div>
           <div>
             <dt>Asks for</dt>
